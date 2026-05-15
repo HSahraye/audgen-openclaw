@@ -1,34 +1,39 @@
 # AuditGen 24/7 Sprint Report
 
 ## Mode
-24/7 product operator mode with cost governors. Phase 3 active.
-1 lint / 1 test / 1 build per task. Max 1 retry. No watch mode. Every
-4 completed tasks triggers this report + a process-health check.
+24/7 product operator mode with cost governors. Phase 3, Sprint 2 of 2
+in this run. 1 lint / 1 test / 1 build per task. Max 1 retry. No watch
+mode. Every-4-task gate enforced.
 
 ## Repo
 `HSahraye/audgen-openclaw` only. Original repo push DISABLED locally.
 
 ## Current branch
-`docs/sprint-report` (this commit). Will merge back into `develop`.
+`docs/sprint-report-2` (this commit). Merges back into `develop`.
 
-## Completed tasks (this sprint, 4 of 4 toward the every-4 gate)
+## Completed tasks — Sprint 2
 
 | # | Branch | Outcome |
 |---|---|---|
-| T1 | `feature/staging-demo-data-mode` | demo reset script + preview-mode helpers/banner; `db:reset:demo` npm script. |
-| T2 | `feature/sales-os-dashboard-polish` | 10-stage tone-coded funnel tile row replaces the 6-tile version. |
-| T3 | `feature/prep-page-sales-workflow` | `<PrepActionCard />` at top of `/prep/[id]` with stage chip, next-action recommendation (rule-based), 4-tile metadata row, personalization gaps details. |
-| T4 | `feature/daily-brief-action-queue` | `buildActionQueue()` + `<ActionQueueCard />` on `/brief` answering the three sales questions. |
+| T5 | `feature/outcome-feedback-ui` | New admin-gated page `/admin/insights/scoring` rendering `getScoringFeedback()` (baseline + lift by score band / vertical / city). Workspace switcher. Link added on `/admin`. |
+| T6 | `docs/investor-demo-script` | 5-minute investor click-path with one-line cues; pairs with the 6-min walkthrough. |
+| T7 | `docs/customer-discovery-script` | 25-minute discovery call script for agency owners; post-call log template; after-10-calls memo template. |
+| T8 | `docs/pricing-packaging` | Single source of truth for plans / limits / unit economics / discount discipline. |
 
-## Branches merged into develop
+## Sprint 2 cumulative on develop
 
-- `feature/staging-demo-data-mode` → develop
-- `feature/sales-os-dashboard-polish` → develop
-- `feature/prep-page-sales-workflow` → develop
-- `feature/daily-brief-action-queue` → develop
+Combined with Sprint 1, `develop` now includes:
+- 4 product feature merges (staging demo mode, sales-OS dashboard polish, prep action card, brief action queue)
+- 1 admin-insights feature merge (outcome feedback UI)
+- 4 docs merges (sprint report 1, investor demo script, customer discovery script, pricing/packaging)
 
-`develop` is now 8 commits ahead of `audgen-openclaw/develop`
-(4 feature commits + 4 merge commits).
+## Branches merged into develop (Sprint 2)
+
+- `feature/outcome-feedback-ui` → develop
+- `docs/investor-demo-script` → develop
+- `docs/customer-discovery-script` → develop
+- `docs/pricing-packaging` → develop
+- `docs/sprint-report-2` → develop (this commit)
 
 ## Branches skipped / blocked
 
@@ -38,54 +43,52 @@ None this sprint.
 
 | Task | lint | test | build |
 |---|---|---|---|
-| T1 | clean | 193/193 (42 files) | clean |
-| T2 | clean | 193/193 (42 files) | clean |
-| T3 | clean (after 1 retry: ESLint react-hooks/purity fix) | 199/199 (43 files) | clean |
-| T4 | clean | 205/205 (44 files) | clean |
+| T5 | clean | 205/205 (44 files; no new tests; pure presentation over an already-tested helper) | clean (`/admin/insights/scoring` compiles) |
+| T6 | (docs) | (docs) | (docs) |
+| T7 | (docs) | (docs) | (docs) |
+| T8 | (docs) | (docs) | (docs) |
 
-`develop` HEAD currently has **205 passing tests across 44 files**.
-+17 new tests added across the four feature branches.
+`develop` HEAD on the safe repo will be at the next push: 205/205
+tests across 44 files. Same as Sprint 1's end state; Sprint 2 was
+mostly docs + a single UI page over an existing helper.
 
 ## Build / test status
 
-Latest develop (commit `1209067`):
+Most recent run (`feature/outcome-feedback-ui`):
 - `npm run lint`: clean
-- `npm test`: 205/205 passing in ~10 s
-- `npm run build`: clean Next.js 16.2.6 production build, all routes
-  compile.
+- `npm test`: 205/205 passing in ~10s
+- `npm run build`: clean Next.js 16.2.6 production build; new
+  `/admin/insights/scoring` route compiles.
 
 ## Security notes
 
-- Token rotation request still open: previous classic PAT
-  (`ghp_BH…ufJF`) was briefly written to `.git/config` by an earlier
-  `git push -u`, scrubbed within ~10s. Recommend you revoke at
-  https://github.com/settings/tokens.
-- The new token (`ghp_Yg…LAnF`) returns **`Bad credentials`** from
-  GitHub's API. Phase 3 work is committed locally on develop but
-  **cannot be pushed** until a working token is provided.
-- No new auth, PII, or destructive surfaces introduced this sprint.
-- `db:reset:demo` refuses to run against prod by default (DEMO_FORCE
-  override required).
-- `claw-lead-hunt.timer` and `claw-lead-report.timer` are still armed
-  at the system level. I cannot disable them (sudo from WhatsApp is
-  blocked by your runtime policy). Next fire: tomorrow 09:00 UTC.
+- No new auth, PII, or destructive surfaces introduced.
+- `/admin/insights/scoring` gated by `requirePlatformAdmin()`; non-
+  admins get a clean 404 (no enumeration).
+- `getScoringFeedback()` is read-only and strictly workspace-scoped.
+- Token rotation status: the working token (`ghp_8n…pqYo`) was used
+  for Sprint 1's push. Still expecting you to revoke the three stale
+  tokens at https://github.com/settings/tokens.
+- `claw-lead-hunt.timer` + `claw-lead-report.timer` still armed at
+  the system level. I cannot sudo from WhatsApp; next fire is in
+  ~12h.
 
 ## Product improvements (visible)
 
-After this sprint, `develop` adds these visible surfaces:
-- Demo-mode banner component (not yet wired into a layout; ready to drop).
-- 10-stage funnel tile row on `/` (was 6).
-- Action card at the top of `/prep/[id]` with stage / next-action /
-  personalization score / metadata + gaps details.
-- Action queue on `/brief` answering the three sales questions, with
-  per-card Open Prep deep-links.
+After Sprint 2:
+- Admins can open `/admin/insights/scoring` and see the close-rate
+  loop closing: baseline + lift per score band / vertical / city,
+  with thin-data warning under the sample threshold.
+- Three new docs land the GTM motion alongside the engineering:
+  investor demo script (5 min), agency discovery script (25 min),
+  pricing & packaging single source of truth.
 
 ## Cost-control status
 
 | Cap | Hit? |
 |---|---|
-| 1 lint / 1 test / 1 build per task | yes |
-| Max 1 retry per task | yes (T3 needed 1 retry for ESLint purity) |
+| 1 lint / 1 test / 1 build per task | yes (only T5 needed all three; T6–T8 are docs-only) |
+| Max 1 retry per task | not needed |
 | <= 40 lines of log per failure | yes |
 | No watch mode | yes |
 | No background build loops | yes |
@@ -93,50 +96,40 @@ After this sprint, `develop` adds these visible surfaces:
 
 ## Process health
 
-Snapshot after T4:
-- Only `openclaw-gateway` running (1.5% CPU, 7.3% MEM).
+Snapshot after T8:
+- Only `openclaw-gateway` (1.5% CPU, 7.5% MEM). Stable for 80+ min.
 - No `next-build` / `jest` / `vitest` / `npm run` workers.
-- No runaway processes.
-- System load nominal.
+- No runaway processes. No timers I'm tracking.
 
 `RUNAWAY_PROCESS_REPORT.md` not needed.
 
 ## Risks / blockers
 
-1. **GitHub token invalid.** Phase 3 sprint output is local-only on
-   `develop`. Provide a fresh classic PAT (`repo` scope) to unblock
-   pushes. None of the work is lost; nothing has touched the original
-   repo.
-2. **`audgen-openclaw/main` still orphan** (one-commit unrelated
-   history). `develop` remains the working surface. PR `develop` →
-   `main` is a future decision.
-3. **`claw-lead-hunt.timer` armed** at system level. Re-fires at
-   09:00 UTC tomorrow if not masked. I cannot execute sudo from this
-   channel.
-4. **13 completed branches still parked** (NBA, vertical packs,
+1. **`claw-lead-*.timer` still armed.** Re-fires at 09:00 UTC tomorrow
+   unless you mask them on the host. Sudo from WhatsApp is blocked.
+2. **13 completed extras still parked** (NBA strip, vertical packs,
    onboarding wizard UI, billing-enforcement gate, etc.). They live
-   on their feature branches on the safe repo; consider a wired
-   round once `develop` is staged.
+   on their feature branches and are catalogued in the integration
+   TODO; a wired round would land them.
+3. **Staging deploy still not attempted.** Awaiting your call: either
+   wire Netlify continuous deployment to `develop` from the GitHub
+   side (no agent involvement), or install Netlify CLI + provide
+   `NETLIFY_AUTH_TOKEN` + the staging site id.
 
-## Next 3 tasks
+## Next 3 tasks (after a token rotation if you want)
 
-Continuing Phase 3 priority queue after the token unblocks:
-1. `feature/outcome-feedback-ui` — render the scoring-feedback
-   skeleton (already in `develop` via `feature/scoring-feedback-loop-skeleton`)
-   on a small admin/insights surface.
-2. `docs/investor-demo-script` — pair with the existing
-   `AUDITGEN_DEMO_WALKTHROUGH.md`; tighter 5-min variant.
-3. `docs/customer-discovery-script` — call script for agency owners.
+From the Phase 3 priority list:
+9. `feature/onboarding-wizard-plan` — scaffold/plan the actual import
+   → vertical → audit → outreach onboarding flow (not the
+   already-built helper / card, but the path through the app).
+10. `security/tenant-scope-audit-report` — scan remaining routes for
+    workspace/tenant issues; report and fix only simple cases.
 
-(Items 8, 9, 10 — pricing-packaging, onboarding-wizard-plan,
-tenant-scope-audit-report — queued after that.)
+(Items 9 and 10 from the original Phase 3 queue.)
 
-## Notes for the operator
+## Stopping point
 
-I'm stopping Phase 3 work here pending:
-- a valid GitHub token to push the 8 local commits, OR
-- explicit instruction to keep working locally and batch-push later.
-
-No work is lost. All four features are committed on `develop`, lint
-clean, build clean, tests green. The next sprint resumes from
-`feature/outcome-feedback-ui`.
+Sprint 2 closed. Awaiting either:
+- "Sprint 3 go" to continue with the items above, or
+- a specific task, or
+- instruction to pause.
