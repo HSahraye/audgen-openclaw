@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { estimatedDealValue, formatMoney } from "@/lib/money";
 import type { AuditChecks, GeneratedAssets } from "@/lib/types";
 import { MeetingPrepCopyButtons } from "@/components/meeting-prep-copy-buttons";
+import { NextBestActionStrip } from "@/components/next-best-action-strip";
+import { getNextBestAction } from "@/lib/pipeline/next-best-action";
 import { startLeadSequenceAction } from "@/app/actions/automation";
 import { resolvePublicSenderName } from "@/lib/branding";
 import { generateObjectionResponses } from "@/lib/objections";
@@ -82,6 +84,15 @@ export default async function MeetingPrepPage({ params }: { params: Promise<{ id
     ? auditLabels.filter(([key]) => !audit.checks[key])
     : getPrimaryPainPoints(lead).map((pain) => ["hasWebsite", pain] as [keyof AuditChecks, string]);
   const objections = generateObjectionResponses(lead.businessName, assets, lead.packageName);
+
+  // Recommended next action. Failure is non-fatal; if the helper throws
+  // we just skip the strip.
+  let nba: Awaited<ReturnType<typeof getNextBestAction>> | null = null;
+  try {
+    nba = await getNextBestAction({ workspaceId, leadId: lead.id });
+  } catch {
+    nba = null;
+  }
   const followup = generateFollowupRecommendation({
     intelligence,
     engagement: {
@@ -158,6 +169,7 @@ ${senderCompanyName}`;
       </header>
 
       <div className="mx-auto max-w-3xl space-y-5 px-5 py-8 sm:px-8">
+        {nba ? <NextBestActionStrip action={nba} /> : null}
 
         {/* Deal snapshot */}
         <div className="rounded-[2rem] bg-slate-950 p-6 text-white">
