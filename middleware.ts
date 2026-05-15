@@ -10,6 +10,7 @@ function isInternalPath(pathname: string) {
   if (pathname.startsWith("/api/stripe/webhook")) return false;
   if (pathname.startsWith("/login")) return false;
   if (pathname.startsWith("/signup")) return false;
+  if (pathname.startsWith("/about")) return false;
   if (pathname.startsWith("/accept-invite")) return false;
   if (pathname.startsWith("/_next")) return false;
   if (pathname === "/favicon.ico") return false;
