@@ -57,6 +57,9 @@ export default async function AdminPage() {
             <Link href="/admin/health" className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 hover:bg-slate-50">
               Health Dashboard
             </Link>
+            <Link href="/admin/insights/scoring" className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 hover:bg-slate-50">
+              Scoring Insights
+            </Link>
             <Link href="/" className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 hover:bg-slate-50">
               Back to Dashboard
             </Link>
