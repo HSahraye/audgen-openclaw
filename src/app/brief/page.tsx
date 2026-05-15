@@ -7,6 +7,7 @@ import { requireRole } from "@/lib/auth";
 import { getCloseProbability, getLeadPriorityState } from "@/lib/intelligence/selectors";
 import { buildPrepPath } from "@/lib/prep-links";
 import { getWorkspaceContext, withWorkspaceFallbackScope } from "@/lib/workspace";
+import { buildPipelineDailyBrief, type DailyBriefItem } from "@/lib/pipeline/daily-brief";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +21,14 @@ function greeting() {
 export default async function BriefPage() {
   await requireRole(["admin", "sales", "viewer"]);
   const { workspaceId } = await getWorkspaceContext();
+  // Pipeline-state brief. Failure is non-fatal; the existing heuristic
+  // brief still renders if this throws.
+  let pipelineBrief: Awaited<ReturnType<typeof buildPipelineDailyBrief>> | null = null;
+  try {
+    pipelineBrief = await buildPipelineDailyBrief(workspaceId);
+  } catch {
+    pipelineBrief = null;
+  }
   const now = new Date();
   const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
   const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
@@ -190,6 +199,48 @@ export default async function BriefPage() {
             </div>
           </div>
         </div>
+
+        {/* Pipeline-state brief (derived from canonical stages + activity). */}
+        {pipelineBrief && pipelineBrief.items.length > 0 ? (
+          <div className="rounded-[2rem] border border-emerald-200 bg-white p-5 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp className="size-4 text-emerald-700" />
+              <h2 className="font-black">Pipeline-state brief</h2>
+              <span className="ml-auto text-xs text-slate-400">{pipelineBrief.items.length} action(s)</span>
+            </div>
+            <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-5 text-[10px] font-black uppercase tracking-[0.12em]">
+              <div className="rounded-xl bg-emerald-50 p-2 text-emerald-700">
+                Replied awaiting<br /><span className="text-base">{pipelineBrief.totals.repliedAwaiting}</span>
+              </div>
+              <div className="rounded-xl bg-emerald-50 p-2 text-emerald-700">
+                Qualified<br /><span className="text-base">{pipelineBrief.totals.qualifiedAwaiting}</span>
+              </div>
+              <div className="rounded-xl bg-amber-50 p-2 text-amber-700">
+                Proposals stale<br /><span className="text-base">{pipelineBrief.totals.proposalsStale}</span>
+              </div>
+              <div className="rounded-xl bg-amber-50 p-2 text-amber-700">
+                Contacted stale<br /><span className="text-base">{pipelineBrief.totals.contactedStale}</span>
+              </div>
+              <div className="rounded-xl bg-slate-100 p-2 text-slate-700">
+                Calls booked<br /><span className="text-base">{pipelineBrief.totals.callBookedUpcoming}</span>
+              </div>
+            </div>
+            <ul className="space-y-2">
+              {pipelineBrief.items.slice(0, 10).map((item: DailyBriefItem) => (
+                <li key={item.leadId} className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3">
+                  <span className="rounded-full bg-slate-950 px-2 py-0.5 text-[10px] font-black uppercase text-white">{item.stage}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-black text-sm">{item.businessName}</p>
+                    <p className="text-xs text-slate-500">{item.reason}</p>
+                  </div>
+                  <Link href={buildPrepPath({ id: item.leadId, shortSlug: null })} className="inline-flex h-8 items-center rounded-xl border border-slate-200 bg-white px-2 text-xs font-black text-slate-700 hover:bg-slate-50">
+                    Prep
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         {/* Hit list */}
         <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
