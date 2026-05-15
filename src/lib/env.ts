@@ -42,6 +42,11 @@ const envSchema = z.object({
 
   CRM_WEBHOOK_URL: z.string().url().optional(),
   CRM_WEBHOOK_SECRET: z.string().optional(),
+  // SECURITY: shared secret used to verify inbound webhooks at
+  // /api/communication/events. Configure this when wiring up provider
+  // delivery/open/click/bounce/unsubscribe events. If unset in production,
+  // the endpoint refuses anonymous calls.
+  COMMUNICATION_WEBHOOK_SECRET: z.string().optional(),
 
   PUBLIC_INGEST_API_KEY: z.string().optional(),
   PUBLIC_INGEST_API_SECRET: z.string().optional(),
