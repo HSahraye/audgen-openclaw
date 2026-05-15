@@ -1,93 +1,78 @@
 # AuditGen 24/7 Sprint Report
 
 ## Mode
-24/7 product operator mode with cost governors. Phase 3, Sprint 2 of 2
-in this run. 1 lint / 1 test / 1 build per task. Max 1 retry. No watch
-mode. Every-4-task gate enforced.
+24/7 product operator mode with cost governors. Phase 3, Sprint 3.
+1 lint / 1 test / 1 build per task. Max 1 retry. No watch mode.
+Sprint 3 had two tasks (the final two on the Phase 3 priority list),
+so the every-4 gate is satisfied at the sprint boundary.
 
 ## Repo
 `HSahraye/audgen-openclaw` only. Original repo push DISABLED locally.
 
 ## Current branch
-`docs/sprint-report-2` (this commit). Merges back into `develop`.
+`docs/sprint-report-3` (this commit). Merges back into `develop`.
 
-## Completed tasks — Sprint 2
+## Completed tasks — Sprint 3
 
 | # | Branch | Outcome |
 |---|---|---|
-| T5 | `feature/outcome-feedback-ui` | New admin-gated page `/admin/insights/scoring` rendering `getScoringFeedback()` (baseline + lift by score band / vertical / city). Workspace switcher. Link added on `/admin`. |
-| T6 | `docs/investor-demo-script` | 5-minute investor click-path with one-line cues; pairs with the 6-min walkthrough. |
-| T7 | `docs/customer-discovery-script` | 25-minute discovery call script for agency owners; post-call log template; after-10-calls memo template. |
-| T8 | `docs/pricing-packaging` | Single source of truth for plans / limits / unit economics / discount discipline. |
+| T9 | `feature/onboarding-wizard-plan` | `AUDITGEN_ONBOARDING_PLAN.md` + `getOnboardingStatus()` helper + `/onboarding` page (server-rendered 4-step checklist with progress bar and deep-link CTAs). |
+| T10 | `security/tenant-scope-audit-report` | `TENANT_SCOPE_AUDIT_REPORT.md` (full API-route inventory). Shipped the one safe fix: per-IP rate limit on `/api/communication/unsubscribe`. Documented 4 deferred follow-ups that need behaviour-change approval. |
 
-## Sprint 2 cumulative on develop
+## Branches merged into develop (Sprint 3)
 
-Combined with Sprint 1, `develop` now includes:
-- 4 product feature merges (staging demo mode, sales-OS dashboard polish, prep action card, brief action queue)
-- 1 admin-insights feature merge (outcome feedback UI)
-- 4 docs merges (sprint report 1, investor demo script, customer discovery script, pricing/packaging)
-
-## Branches merged into develop (Sprint 2)
-
-- `feature/outcome-feedback-ui` → develop
-- `docs/investor-demo-script` → develop
-- `docs/customer-discovery-script` → develop
-- `docs/pricing-packaging` → develop
-- `docs/sprint-report-2` → develop (this commit)
-
-## Branches skipped / blocked
-
-None this sprint.
+- `feature/onboarding-wizard-plan` → develop
+- `security/tenant-scope-audit-report` → develop
+- `docs/sprint-report-3` → develop (this commit)
 
 ## Checks run (per task, cost-capped)
 
 | Task | lint | test | build |
 |---|---|---|---|
-| T5 | clean | 205/205 (44 files; no new tests; pure presentation over an already-tested helper) | clean (`/admin/insights/scoring` compiles) |
-| T6 | (docs) | (docs) | (docs) |
-| T7 | (docs) | (docs) | (docs) |
-| T8 | (docs) | (docs) | (docs) |
+| T9 | clean | 212/212 (45 files; +7 new in `src/lib/onboarding/status.test.ts`) | clean (`/onboarding` compiles) |
+| T10 | clean | 212/212 (same; no new tests; report + a 1-line rate-limit add) | clean |
 
-`develop` HEAD on the safe repo will be at the next push: 205/205
-tests across 44 files. Same as Sprint 1's end state; Sprint 2 was
-mostly docs + a single UI page over an existing helper.
+`develop` HEAD on safe repo after this push: 212/212 tests across 45
+files. +14 net new tests in Phase 3 vs. the start (188 → 212).
 
 ## Build / test status
 
-Most recent run (`feature/outcome-feedback-ui`):
+Most recent run on `develop` after both Sprint 3 merges:
 - `npm run lint`: clean
-- `npm test`: 205/205 passing in ~10s
-- `npm run build`: clean Next.js 16.2.6 production build; new
-  `/admin/insights/scoring` route compiles.
+- `npm test`: 212/212 passing in ~10s
+- `npm run build`: clean Next.js 16.2.6 production build, all routes
+  compile (now includes `/admin/insights/scoring` and `/onboarding`).
 
 ## Security notes
 
-- No new auth, PII, or destructive surfaces introduced.
-- `/admin/insights/scoring` gated by `requirePlatformAdmin()`; non-
-  admins get a clean 404 (no enumeration).
-- `getScoringFeedback()` is read-only and strictly workspace-scoped.
-- Token rotation status: the working token (`ghp_8n…pqYo`) was used
-  for Sprint 1's push. Still expecting you to revoke the three stale
-  tokens at https://github.com/settings/tokens.
-- `claw-lead-hunt.timer` + `claw-lead-report.timer` still armed at
-  the system level. I cannot sudo from WhatsApp; next fire is in
-  ~12h.
+This sprint produced one shippable security improvement and a
+documented deferral list:
+
+- ✅ Per-IP rate limit on `/api/communication/unsubscribe` (60/min).
+- 🟡 Four deferred follow-ups in `TENANT_SCOPE_AUDIT_REPORT.md`:
+  unsubscribe-signed-link, public-ingest-tenant-binding,
+  stripe-webhook-no-default-fallback, automation-runner-secret-required.
+  Each is small and focused but requires either a coordinated rotation
+  with an external caller (`presencelabs.net` signer; existing
+  unsubscribe emails) or a production env change. Owner approval before
+  any of them ships.
+- claw-lead timers: still armed at the system level. Sudo from
+  WhatsApp blocked by runtime policy. Next fire 09:00 UTC tomorrow.
 
 ## Product improvements (visible)
 
-After Sprint 2:
-- Admins can open `/admin/insights/scoring` and see the close-rate
-  loop closing: baseline + lift per score band / vertical / city,
-  with thin-data warning under the sample threshold.
-- Three new docs land the GTM motion alongside the engineering:
-  investor demo script (5 min), agency discovery script (25 min),
-  pricing & packaging single source of truth.
+After Sprint 3, `develop` adds:
+- `/onboarding` route: 4-step server-rendered checklist with progress
+  bar, done/current/pending styling, deep-link CTAs. Renders nothing
+  destructive if the helper throws (failure-isolated).
+- Documentation surface broadens: `AUDITGEN_ONBOARDING_PLAN.md` and
+  `TENANT_SCOPE_AUDIT_REPORT.md`.
 
 ## Cost-control status
 
 | Cap | Hit? |
 |---|---|
-| 1 lint / 1 test / 1 build per task | yes (only T5 needed all three; T6–T8 are docs-only) |
+| 1 lint / 1 test / 1 build per task | yes |
 | Max 1 retry per task | not needed |
 | <= 40 lines of log per failure | yes |
 | No watch mode | yes |
@@ -96,40 +81,55 @@ After Sprint 2:
 
 ## Process health
 
-Snapshot after T8:
-- Only `openclaw-gateway` (1.5% CPU, 7.5% MEM). Stable for 80+ min.
+Snapshot after T10:
+- Only `openclaw-gateway` (1.6% CPU, 7.5% MEM). Stable.
 - No `next-build` / `jest` / `vitest` / `npm run` workers.
-- No runaway processes. No timers I'm tracking.
+- No runaway processes.
+- No timers tracked by me; `claw-lead-*.timer` still armed at the
+  system level pending your sudo block.
 
 `RUNAWAY_PROCESS_REPORT.md` not needed.
 
 ## Risks / blockers
 
-1. **`claw-lead-*.timer` still armed.** Re-fires at 09:00 UTC tomorrow
-   unless you mask them on the host. Sudo from WhatsApp is blocked.
+1. **`claw-lead-*.timer` still armed.** Re-fires 09:00 UTC tomorrow.
 2. **13 completed extras still parked** (NBA strip, vertical packs,
-   onboarding wizard UI, billing-enforcement gate, etc.). They live
-   on their feature branches and are catalogued in the integration
-   TODO; a wired round would land them.
-3. **Staging deploy still not attempted.** Awaiting your call: either
-   wire Netlify continuous deployment to `develop` from the GitHub
-   side (no agent involvement), or install Netlify CLI + provide
-   `NETLIFY_AUTH_TOKEN` + the staging site id.
+   onboarding wizard UI / helper, billing-enforcement gate, etc.).
+   When the time is right, a "wired integration round" can land them
+   on `develop` in one go.
+3. **Four deferred security follow-ups** documented in
+   `TENANT_SCOPE_AUDIT_REPORT.md`. None are immediately exploitable
+   from outside; all touch live integrations.
 
-## Next 3 tasks (after a token rotation if you want)
+## Phase 3 retrospective (10 tasks total)
 
-From the Phase 3 priority list:
-9. `feature/onboarding-wizard-plan` — scaffold/plan the actual import
-   → vertical → audit → outreach onboarding flow (not the
-   already-built helper / card, but the path through the app).
-10. `security/tenant-scope-audit-report` — scan remaining routes for
-    workspace/tenant issues; report and fix only simple cases.
+| Sprint | Tasks | Outcome |
+|---|---|---|
+| 1 | T1–T4 (staging-demo-mode, dashboard-polish, prep-action-card, brief-action-queue) | 4 feature merges; 188 → 205 tests; visible product polish on `/`, `/prep`, `/brief`. |
+| 2 | T5–T8 (outcome-feedback-ui, investor-demo, customer-discovery, pricing-packaging) | 1 feature + 3 docs; new `/admin/insights/scoring` page; GTM-side trio. |
+| 3 | T9–T10 (onboarding-wizard-plan, tenant-scope-audit-report) | 1 feature + 1 security audit; new `/onboarding` route; 1 safe security fix; 4 deferred follow-ups documented. |
 
-(Items 9 and 10 from the original Phase 3 queue.)
+Phase 3 added **10 focused branches → develop**, **24 new tests**
+(188 → 212), and **9 new docs** without a single conflict or
+runaway process.
+
+## Next 3 tasks (proposed, for whenever you say go)
+
+The Phase 3 plan is complete. Next-cycle options, ordered by impact:
+
+1. **Wired integration round** — merge the 13 parked branches into
+   `develop` in dependency order. Adds NBA strip on `/prep`, vertical
+   pack hints, onboarding wizard UI on `/`, billing-enforcement gate
+   on import-jobs, and a few others. One focused integration cycle,
+   same shape as the initial `develop` build.
+2. **`security/automation-runner-secret-required`** — smallest of the
+   four deferred fixes; enforces `AUTOMATION_RUNNER_SECRET` in prod
+   via `assertProductionEnv()`. ~30 minutes of work, no external
+   coordination.
+3. **`docs/staging-checklist-v2`** — refresh the staging checklist
+   now that `/onboarding`, `/admin/insights/scoring`, and the action
+   queue exist. Helps when you actually wire Netlify staging.
 
 ## Stopping point
 
-Sprint 2 closed. Awaiting either:
-- "Sprint 3 go" to continue with the items above, or
-- a specific task, or
-- instruction to pause.
+Sprint 3 closed. Phase 3 complete. Awaiting your next instruction.
