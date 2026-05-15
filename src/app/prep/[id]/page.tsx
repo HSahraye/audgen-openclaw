@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { estimatedDealValue, formatMoney } from "@/lib/money";
 import type { AuditChecks, GeneratedAssets } from "@/lib/types";
 import { MeetingPrepCopyButtons } from "@/components/meeting-prep-copy-buttons";
+import { PrepActionCard } from "@/components/prep-action-card";
 import { ReplyLogger } from "@/components/reply-logger";
 import { startLeadSequenceAction } from "@/app/actions/automation";
 import { resolvePublicSenderName } from "@/lib/branding";
@@ -159,6 +160,11 @@ ${senderCompanyName}`;
       </header>
 
       <div className="mx-auto max-w-3xl space-y-5 px-5 py-8 sm:px-8">
+        <PrepActionCard
+          lead={lead}
+          pitchText={assets.thirtySecondPitch || ""}
+          failedAuditCheckKeys={failedChecks.map(([k]) => String(k))}
+        />
 
         {/* Deal snapshot */}
         <div className="rounded-[2rem] bg-slate-950 p-6 text-white">
