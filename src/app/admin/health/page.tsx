@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { requireSessionRole } from "@/lib/auth";
+import { requirePlatformAdmin } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminHealthPage() {
-  await requireSessionRole(["owner"]);
+  // Platform-admin only (ADMIN_EMAILS allowlist). NOT workspace-owner.
+  await requirePlatformAdmin();
   const now = new Date();
   const last24h = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const [queueRunning, queueFailed, webhookCount, auditVolume, aiFailures, activeWorkspaces] = await Promise.all([
