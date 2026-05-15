@@ -1,10 +1,15 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import {
   issueSession,
   resolveRoleFromPassword,
   signInWithEmailPassword,
   signUpWithEmailPassword,
+  getFailedAuthState,
+  registerFailedAuthAttempt,
+  clearFailedAuthAttempts,
 } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 import { BRAND } from "@/lib/brand";
 import { AuditGenLogo } from "@/components/brand/auditgen-logo";
 
@@ -38,10 +43,34 @@ async function loginAction(formData: FormData) {
     redirect(next || "/");
   }
 
-  const role = resolveRoleFromPassword(password);
-  if (!role) {
+  // SECURITY: legacy shared-password fallback. This path has no per-user
+  // attribution and is scheduled for removal once all real accounts are on
+  // email+password. Until then:
+  //   1. Hard rate-limit by client IP (10 / 15 min, then exponential lockout).
+  //   2. Track failed attempts in the same throttle map as better-auth.
+  //   3. Legacy sessions are explicitly disallowed from /admin (see
+  //      requirePlatformAdmin in src/lib/authz.ts).
+  // TODO(security): remove this fallback entirely after legacy migration.
+  const headerStore = await headers();
+  const clientIp =
+    headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    headerStore.get("x-real-ip") ||
+    "anonymous";
+  const legacyKey = `legacy-login:${clientIp}`;
+  const rate = checkRateLimit(legacyKey, 10, 15 * 60_000);
+  if (!rate.ok) {
     redirect(`/login?next=${encodeURIComponent(next || "/")}&error=invalid`);
   }
+  const throttle = getFailedAuthState(legacyKey);
+  if (throttle.locked) {
+    redirect(`/login?next=${encodeURIComponent(next || "/")}&error=invalid`);
+  }
+  const role = resolveRoleFromPassword(password);
+  if (!role) {
+    registerFailedAuthAttempt(legacyKey);
+    redirect(`/login?next=${encodeURIComponent(next || "/")}&error=invalid`);
+  }
+  clearFailedAuthAttempts(legacyKey);
   await issueSession(role);
   redirect(next || "/");
 }

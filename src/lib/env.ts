@@ -48,6 +48,9 @@ const envSchema = z.object({
   DEFAULT_WORKSPACE_SLUG: z.string().optional(),
   DEFAULT_WORKSPACE_NAME: z.string().optional(),
   ADMIN_EMAILS: z.string().optional(),
+  // SECURITY: when "true", workspace-scoped queries also match rows with
+  // workspaceId=null (legacy orphan rows). Leave unset in production.
+  ALLOW_WORKSPACE_NULL_FALLBACK: z.enum(["true", "false"]).optional(),
   SENTRY_DSN: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().optional(),
