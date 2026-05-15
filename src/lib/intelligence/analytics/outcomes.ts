@@ -60,12 +60,6 @@ type LeadRow = {
   status: string;
 };
 
-type ActivityCount = {
-  leadId: string;
-  type: string;
-  count: number;
-};
-
 function bucketKey(value: string | null | undefined): string | null {
   if (!value) return null;
   const t = value.trim().toLowerCase();
