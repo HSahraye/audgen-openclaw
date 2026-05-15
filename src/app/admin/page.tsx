@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { requireSessionRole } from "@/lib/auth";
+import { requirePlatformAdmin } from "@/lib/authz";
 import { getOperationalInsights } from "@/lib/automation/insights";
 import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
-  await requireSessionRole(["owner"]);
+  // Platform-admin only (ADMIN_EMAILS allowlist). NOT workspace-owner.
+  // Non-admins get a standard 404 from notFound() inside the gate.
+  await requirePlatformAdmin();
   const [workspaces, failedImports, recentWebhooks, recentAiUsage, recentErrors, insights] = await Promise.all([
     prisma.workspace.findMany({
       orderBy: { updatedAt: "desc" },
