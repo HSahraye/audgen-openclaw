@@ -62,9 +62,20 @@ const baseMetrics: PipelineMetrics = {
 };
 
 describe("PipelineFunnelTiles", () => {
-  it("renders every required counter label", () => {
+  it("renders all 10 canonical funnel tiles", () => {
     const tree = PipelineFunnelTiles({ metrics: baseMetrics });
-    for (const label of ["Imported", "Contacted", "Replied", "Booked", "Proposal", "Won"]) {
+    for (const label of [
+      "Imported",
+      "Scored",
+      "Audited",
+      "Prepared",
+      "Contacted",
+      "Replied",
+      "Booked",
+      "Proposal",
+      "Won",
+      "Lost",
+    ]) {
       expect(findString(tree, label)).toBe(true);
     }
   });
