@@ -16,6 +16,7 @@
     "backfill:audit-slugs": "tsx scripts/backfill-audit-slugs.ts",
     "db:bootstrap:saas": "tsx scripts/bootstrap-saas.ts",
     "db:bootstrap:automation": "tsx scripts/bootstrap-automation.ts",
+    "db:seed:demo": "tsx scripts/seed-demo-data.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },
