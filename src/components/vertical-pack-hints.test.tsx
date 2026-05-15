@@ -36,8 +36,8 @@ describe("VerticalPackHints", () => {
     // Pricing tile labels
     expect(findString(tree, "Starter")).toBe(true);
     expect(findString(tree, "Premium")).toBe(true);
-    // Cycle days display (number)
-    expect(findString(tree, "9d")).toBe(true);
+    // Cycle days display: dental pack's typicalCycleDays = 9
+    expect(findString(tree, "9")).toBe(true);
   });
 
   it("renders the smoke-shop pack for a vape shop", () => {
