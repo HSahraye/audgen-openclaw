@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { estimatedDealValue, formatMoney } from "@/lib/money";
 import type { AuditChecks, GeneratedAssets } from "@/lib/types";
 import { MeetingPrepCopyButtons } from "@/components/meeting-prep-copy-buttons";
+import { VerticalPackHints } from "@/components/vertical-pack-hints";
 import { startLeadSequenceAction } from "@/app/actions/automation";
 import { resolvePublicSenderName } from "@/lib/branding";
 import { generateObjectionResponses } from "@/lib/objections";
@@ -196,6 +197,9 @@ ${senderCompanyName}`;
             </div>
           )}
         </div>
+
+        {/* Vertical-pack playbook (renders nothing when no pack matches). */}
+        <VerticalPackHints category={lead.category} businessName={lead.businessName} />
 
         {/* 30-second pitch */}
         <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
