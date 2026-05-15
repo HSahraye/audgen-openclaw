@@ -1,9 +1,11 @@
 import { AuditDashboard } from "@/components/audit-dashboard";
+import { OnboardingWizardCard } from "@/components/onboarding-wizard-card";
 import { listCurrentUserWorkspaces, requireSessionRole } from "@/lib/auth";
 import { buildPreferredAuditPath } from "@/lib/audit-links";
 import { resolvePublicSenderName } from "@/lib/branding";
 import { prisma } from "@/lib/prisma";
 import { getPublicBaseUrl } from "@/lib/url";
+import { getOnboardingWizardState } from "@/lib/onboarding/wizard";
 import { withWorkspaceFallbackScope } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
@@ -76,6 +78,15 @@ export default async function Home() {
     take: 100,
   });
 
+  // Onboarding wizard state. Failure is non-fatal: if the helper throws,
+  // the rest of the dashboard still renders without the wizard card.
+  let wizardState: Awaited<ReturnType<typeof getOnboardingWizardState>> | null = null;
+  try {
+    wizardState = await getOnboardingWizardState(workspaceId);
+  } catch {
+    wizardState = null;
+  }
+
   const workspaceSettings = await prisma.workspaceSettings.findUnique({ where: { workspaceId } });
   const senderCompanyName = resolvePublicSenderName(
     {
@@ -85,7 +96,9 @@ export default async function Home() {
   );
 
   return (
-    <AuditDashboard
+    <>
+      {wizardState ? <OnboardingWizardCard state={wizardState} /> : null}
+      <AuditDashboard
       latestImportJob={
         latestImportJob
           ? {
@@ -201,6 +214,7 @@ export default async function Home() {
         createdAt: lead.createdAt.toISOString(),
         updatedAt: lead.updatedAt.toISOString(),
       }))}
-    />
+      />
+    </>
   );
 }
