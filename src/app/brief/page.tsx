@@ -7,6 +7,9 @@ import { requireRole } from "@/lib/auth";
 import { getCloseProbability, getLeadPriorityState } from "@/lib/intelligence/selectors";
 import { buildPrepPath } from "@/lib/prep-links";
 import { getWorkspaceContext, withWorkspaceFallbackScope } from "@/lib/workspace";
+import { buildPipelineDailyBrief } from "@/lib/pipeline/daily-brief";
+import { buildActionQueue } from "@/lib/pipeline/action-queue";
+import { ActionQueueCard } from "@/components/action-queue-card";
 
 export const dynamic = "force-dynamic";
 
@@ -20,6 +23,16 @@ function greeting() {
 export default async function BriefPage() {
   await requireRole(["admin", "sales", "viewer"]);
   const { workspaceId } = await getWorkspaceContext();
+
+  // Pipeline-state action queue. Non-fatal: if the helper throws, the
+  // existing heuristic hit list still renders.
+  let actionQueue: Awaited<ReturnType<typeof buildActionQueue>> | null = null;
+  try {
+    const brief = await buildPipelineDailyBrief(workspaceId);
+    actionQueue = buildActionQueue(brief);
+  } catch {
+    actionQueue = null;
+  }
   const now = new Date();
   const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
   const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
@@ -190,6 +203,8 @@ export default async function BriefPage() {
             </div>
           </div>
         </div>
+
+        {actionQueue ? <ActionQueueCard queue={actionQueue} /> : null}
 
         {/* Hit list */}
         <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
