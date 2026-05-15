@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { estimatedDealValue, formatMoney } from "@/lib/money";
 import type { AuditChecks, GeneratedAssets } from "@/lib/types";
 import { MeetingPrepCopyButtons } from "@/components/meeting-prep-copy-buttons";
+import { ReplyLogger } from "@/components/reply-logger";
 import { startLeadSequenceAction } from "@/app/actions/automation";
 import { resolvePublicSenderName } from "@/lib/branding";
 import { generateObjectionResponses } from "@/lib/objections";
@@ -373,6 +374,9 @@ ${senderCompanyName}`;
             ))}
           </div>
         </div>
+
+        {/* Reply logger — first user-visible piece of reply intelligence. */}
+        <ReplyLogger leadId={lead.id} />
 
         {/* Audit link */}
         <div className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm flex items-center justify-between gap-4">
