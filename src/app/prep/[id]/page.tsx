@@ -12,6 +12,7 @@ import { generateFollowupRecommendation } from "@/lib/intelligence/followup/brai
 import { buildProposalIntelligence } from "@/lib/intelligence/proposals/engine";
 import { getLeadIntelligence, getPrimaryPainPoints, getRecommendedOffer } from "@/lib/intelligence/selectors";
 import { resolveTemplate } from "@/lib/templates";
+import { validatePersonalization } from "@/lib/intelligence/outreach/personalization";
 import { requireRole } from "@/lib/auth";
 import { buildPreferredAuditPath } from "@/lib/audit-links";
 import { getWorkspaceContext, withWorkspaceFallbackScope } from "@/lib/workspace";
@@ -207,6 +208,38 @@ ${senderCompanyName}`;
             <MeetingPrepCopyButtons label="Copy pitch" text={assets.thirtySecondPitch} />
           </div>
           <p className="mt-4 text-sm leading-relaxed text-slate-700 rounded-2xl bg-lime-50 p-4 border border-lime-100">{assets.thirtySecondPitch}</p>
+          {(() => {
+            const report = validatePersonalization({
+              text: assets.thirtySecondPitch || "",
+              businessName: lead.businessName,
+              ownerName: lead.ownerName,
+              location: lead.location,
+              category: lead.category,
+              failedAuditChecks: failedChecks.map(([k]) => String(k)),
+            });
+            if (report.ok) {
+              return (
+                <p className="mt-3 text-[11px] font-black uppercase tracking-[0.16em] text-emerald-700">
+                  Personalization: 4/4 signals present.
+                </p>
+              );
+            }
+            return (
+              <div className="mt-3 rounded-2xl border border-amber-200 bg-amber-50 p-3" role="status">
+                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-amber-800">
+                  Personalization: {report.found.length}/4 signals
+                </p>
+                <ul className="mt-1 list-disc pl-5 text-xs text-amber-900">
+                  {report.notes.map((n, i) => (
+                    <li key={i}>{n}</li>
+                  ))}
+                </ul>
+                <p className="mt-2 text-[11px] text-amber-700">
+                  Advisory only — the pitch still works. Stronger pitches close more.
+                </p>
+              </div>
+            );
+          })()}
         </div>
 
         {/* Pain summary */}
