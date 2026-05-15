@@ -1,9 +1,11 @@
 import { AuditDashboard } from "@/components/audit-dashboard";
+import { PipelineFunnelTiles } from "@/components/pipeline-funnel-tiles";
 import { listCurrentUserWorkspaces, requireSessionRole } from "@/lib/auth";
 import { buildPreferredAuditPath } from "@/lib/audit-links";
 import { resolvePublicSenderName } from "@/lib/branding";
 import { prisma } from "@/lib/prisma";
 import { getPublicBaseUrl } from "@/lib/url";
+import { getPipelineMetrics } from "@/lib/pipeline/counters";
 import { withWorkspaceFallbackScope } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
@@ -76,6 +78,16 @@ export default async function Home() {
     take: 100,
   });
 
+  // Pipeline funnel metrics. Workspace-scoped server-side. Failure is
+  // non-fatal: if the helper throws we still render the rest of the
+  // dashboard without the tiles.
+  let pipelineMetrics: Awaited<ReturnType<typeof getPipelineMetrics>> | null = null;
+  try {
+    pipelineMetrics = await getPipelineMetrics(workspaceId);
+  } catch {
+    pipelineMetrics = null;
+  }
+
   const workspaceSettings = await prisma.workspaceSettings.findUnique({ where: { workspaceId } });
   const senderCompanyName = resolvePublicSenderName(
     {
@@ -85,7 +97,9 @@ export default async function Home() {
   );
 
   return (
-    <AuditDashboard
+    <>
+      {pipelineMetrics ? <PipelineFunnelTiles metrics={pipelineMetrics} /> : null}
+      <AuditDashboard
       latestImportJob={
         latestImportJob
           ? {
@@ -201,6 +215,7 @@ export default async function Home() {
         createdAt: lead.createdAt.toISOString(),
         updatedAt: lead.updatedAt.toISOString(),
       }))}
-    />
+      />
+    </>
   );
 }
