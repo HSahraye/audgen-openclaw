@@ -8,6 +8,7 @@ import { trackEvent } from "./events";
 import { markOnboardingMilestone } from "@/lib/onboarding";
 import { getWorkspaceContext, withWorkspaceFallbackScope } from "./workspace";
 import { generateUniqueAuditSlug } from "@/lib/audit-slugs";
+import { buildActivityCreate } from "@/lib/pipeline/activity";
 
 const DEFAULT_CHUNK_SIZE = 3;
 const RETRYABLE_IMPORT_ERRORS = [/429/, /rate limit/i, /timeout/i, /network/i, /5\d\d/];
@@ -99,7 +100,7 @@ async function processRow(row: CsvRow, index: number, workspaceId: string) {
     workspaceId,
   });
   const shortSlug = await generateUniqueAuditSlug(businessName || websiteUrl);
-  await prisma.lead.create({
+  const created = await prisma.lead.create({
     data: {
       workspaceId,
       shortSlug,
@@ -121,7 +122,45 @@ async function processRow(row: CsvRow, index: number, workspaceId: string) {
       intelligenceJson: JSON.stringify(audit.intelligence, null, 2),
       generatedContextJson: audit.generatedContext ? JSON.stringify(audit.generatedContext, null, 2) : null,
     },
+    select: { id: true },
   });
+
+  // Emit canonical activities for the new lead. These power the pipeline
+  // counters, outcome analytics, and the daily brief. Best-effort: if a
+  // future schema change drops Activity, the import still succeeds.
+  try {
+    await prisma.activity.create({
+      data: buildActivityCreate({
+        workspaceId,
+        leadId: created.id,
+        type: "LEAD_IMPORTED",
+        source: "system",
+        metadata: { mode: "csv_import_async", score: audit.assets.leadScore },
+      }),
+    });
+    await prisma.activity.create({
+      data: buildActivityCreate({
+        workspaceId,
+        leadId: created.id,
+        type: "AUDIT_GENERATED",
+        source: "system",
+        metadata: { auditSource: audit.source },
+      }),
+    });
+    if (audit.assets.leadScore > 0) {
+      await prisma.activity.create({
+        data: buildActivityCreate({
+          workspaceId,
+          leadId: created.id,
+          type: "LEAD_SCORED",
+          source: "system",
+          metadata: { score: audit.assets.leadScore },
+        }),
+      });
+    }
+  } catch (err) {
+    logger.warn("activity emit failed during import", { err: String(err) });
+  }
   await incrementUsageMetric({ workspaceId, metric: "audits_generated", amount: 1, metadata: { source: "csv_import_async" } });
   await incrementUsageMetric({ workspaceId, metric: "proposal_generations", amount: 1, metadata: { source: "csv_import_async" } });
   await incrementUsageMetric({ workspaceId, metric: "outreach_generations", amount: 1, metadata: { source: "csv_import_async" } });
