@@ -17,6 +17,7 @@
     "db:bootstrap:saas": "tsx scripts/bootstrap-saas.ts",
     "db:bootstrap:automation": "tsx scripts/bootstrap-automation.ts",
     "db:seed:demo": "tsx scripts/seed-demo-data.ts",
+    "db:reset:demo": "tsx scripts/reset-demo-data.ts",
     "db:studio": "prisma studio",
     "postinstall": "prisma generate"
   },
