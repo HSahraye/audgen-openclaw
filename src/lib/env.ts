@@ -53,6 +53,7 @@ const envSchema = z.object({
   GOOGLE_SHEETS_CLIENT_EMAIL: z.string().optional(),
   GOOGLE_SHEETS_PRIVATE_KEY: z.string().optional(),
   GOOGLE_SHEETS_SPREADSHEET_ID: z.string().optional(),
+  GOOGLE_PLACES_API_KEY: z.string().optional(),
   DEFAULT_WORKSPACE_SLUG: z.string().optional(),
   DEFAULT_WORKSPACE_NAME: z.string().optional(),
   ADMIN_EMAILS: z.string().optional(),

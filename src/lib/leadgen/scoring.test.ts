@@ -24,7 +24,7 @@ const baseSeed: LeadOpportunitySeed = {
   responseSpeedSignal: "average",
   source: "mock_local",
   sourceUrl: null,
-  status: "new",
+  status: "discovered",
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 };

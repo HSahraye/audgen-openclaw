@@ -136,5 +136,6 @@ export function scoreLeadOpportunity(seed: LeadOpportunitySeed): LeadOpportunity
     presenceGaps: gaps.length ? gaps : ["General conversion optimization opportunity"],
     recommendedOffer,
     suggestedPitch,
+    lastActionAt: null,
   };
 }

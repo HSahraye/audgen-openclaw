@@ -4,3 +4,7 @@ export * from "@/lib/leadgen/filters";
 export * from "@/lib/leadgen/export";
 export * from "@/lib/leadgen/mock-data";
 export * from "@/lib/leadgen/sources";
+export * from "@/lib/leadgen/persistence";
+export * from "@/lib/leadgen/diagnostics";
+export * from "@/lib/leadgen/audit-preflight";
+export * from "@/lib/leadgen/ui-interactions";

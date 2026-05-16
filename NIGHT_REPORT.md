@@ -166,3 +166,24 @@ Implemented a new phase-1 `LeadGen Command Center` module on feature branch `fea
 - Added env placeholders for future Google Sheets connector scaffolding (disabled by default)
 
 No live external connectors were activated. No production or outbound operations were performed.
+
+---
+
+## Day Operator Addendum — LeadGen Phase 2
+
+Implemented Phase 2 enhancements on `feat/leadgen-command-center`:
+
+- Added workspace-scoped server persistence design for LeadGen opportunities using existing `ResearchQueueItem` + `FeatureFlag` + `Activity` models.
+- Added saved filter views (preset + custom) and UI controls for apply/save/delete.
+- Added bulk status workflow (`discovered` through `archived`) with activity logging.
+- Added audit generation preflight + approval-gated queue behavior (no live paid generation).
+- Added connector diagnostics panel with env-readiness status for Google Sheets/Places and mock/local adapters.
+- Added integration-style interaction tests for selection/export/import flow logic and new tests for diagnostics/preflight/persistence helpers.
+
+Safety maintained:
+
+- No deployment
+- No merge
+- No destructive DB commands
+- No external connector activation
+- No outbound automation

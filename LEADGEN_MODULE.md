@@ -1,123 +1,160 @@
 # LeadGen Command Center
 
-## What this module is
+## Module mission
 
-`/leadgen` is the phase-1 top-of-funnel module for AudGen. It helps operators discover, qualify, and route local business opportunities into the existing AudGen sales engine without calling live external APIs.
+`/leadgen` is the top-of-funnel command center in AudGen:
+
+Find Leads → Qualify → Export/Add to AudGen → Generate Audit → Outreach → Revenue.
+
+Phase 2 keeps this flow safe/local-first with approval-gated connectors and audit generation.
 
 ## Route
 
-- ` /leadgen`
+- `/leadgen`
 
-## Files added/changed
+## Phase 2 architecture
 
-### New files
+### Server-side persistence design (workspace scoped)
 
-- `src/app/leadgen/page.tsx`
-- `src/app/leadgen/loading.tsx`
-- `src/components/leadgen-command-center.tsx`
-- `src/app/actions/leadgen.ts`
-- `src/lib/leadgen/types.ts`
-- `src/lib/leadgen/scoring.ts`
-- `src/lib/leadgen/filters.ts`
-- `src/lib/leadgen/export.ts`
-- `src/lib/leadgen/mock-data.ts`
-- `src/lib/leadgen/sources.ts`
-- `src/lib/leadgen/index.ts`
-- `src/lib/leadgen/ui-state.ts`
-- `src/lib/leadgen/scoring.test.ts`
-- `src/lib/leadgen/filters.test.ts`
-- `src/lib/leadgen/export.test.ts`
-- `src/lib/leadgen/sources.test.ts`
-- `src/lib/leadgen/ui-state.test.ts`
+To avoid risky/destructive DB work, Phase 2 reuses existing workspace-scoped models:
 
-### Updated files
+- `ResearchQueueItem` as persisted LeadGen opportunity record
+- `FeatureFlag` as saved filter view storage (`leadgen.saved_view.*`)
+- `Activity` as LeadGen timeline storage (`type` prefixed with `leadgen.` and `metadataJson` linking `opportunityId`)
 
-- `src/components/audit-dashboard.tsx` (adds LeadGen nav entry)
-- `src/lib/env.ts` (adds optional Google Sheets env placeholders)
-- `.env.example` (documents LeadGen connector env vars)
+LeadGen opportunities are stored with:
 
-## Scoring model
+- core business fields in `ResearchQueueItem` columns
+- expanded LeadGen fields (scores, gaps, diagnostics fields, offer/pitch, etc.) serialized in `notes` as prefixed JSON metadata
+- strict workspace scoping through existing workspace helpers
 
-Scoring is deterministic and pure (`src/lib/leadgen/scoring.ts`):
+This gives server persistence now without schema resets/destructive operations.
 
-- Produces `estimatedNeedScore` between 0 and 100.
-- Maps score to `Low | Medium | High | Critical`.
-- Prioritizes:
-  - Missing website
-  - Weak website quality
-  - Missing GBP signal
-  - Missing booking/contact/social flows
-  - Low reviews and weak ratings
-  - Slow response signal
-  - High-value local-service categories
-- Produces explainable outputs:
-  - `presenceGaps[]`
-  - `recommendedOffer`
-  - `suggestedPitch`
-  - `estimatedRevenuePotential`
+### Saved filter views
 
-## Export behavior
+Saved view support includes:
 
-`src/lib/leadgen/export.ts` provides:
+- preset views:
+  - Missing Website
+  - High Opportunity
+  - Ready for Audit
+  - Exported
+  - Queued
+  - Local Contractors
+  - Low Reviews
+  - No GBP Signal
+- custom per-workspace saved views in `FeatureFlag.metadataJson`
+- apply/delete support in UI
 
-- Standard CSV export with stable headers.
-- Google-Sheets-ready CSV export with same stable order.
-- Safe quoting/escaping through existing shared CSV utilities.
-- Presence gaps serialized as semicolon-separated values.
+### Bulk status workflow
 
-No Google API call is made in this phase.
+Workflow statuses:
 
-## Mock/local-only scope
+- `discovered`
+- `reviewed`
+- `exported`
+- `queued`
+- `audit_generated`
+- `contacted`
+- `follow_up`
+- `won`
+- `lost`
+- `archived`
 
-Current phase intentionally uses:
+Bulk action bar supports:
 
-- Mock/local lead source adapter.
-- Manual CSV import and local scoring.
-- Disabled Google Places and Google Sheets adapters.
-- Disabled future connector placeholders.
+- mark reviewed
+- mark queued
+- mark archived
+- reset discovered
+- export + mark exported
 
-No scraping, no paid API calls, and no outbound automations are triggered.
+### Activity log design
 
-## Add to AudGen integration
+Each opportunity shows timeline events sourced from `Activity`:
 
-`addSelectedLeadgenToAudgenAction` adds selected opportunities into `ResearchQueueItem` safely:
+- discovered
+- score_calculated
+- exported_csv
+- added_to_audgen_queue
+- status_changed
+- audit_generation_requested
+- audit_generation_requires_approval
+- note_added
 
-- De-dupes against existing leads and queue items by business/location or website.
-- Stores source as `leadgen:*`.
-- Adds presence-gap notes for downstream context.
-- Revalidates `/research` and `/leadgen`.
+### Audit generation preflight design
 
-This allows sales ops to move qualified opportunities into the existing AudGen queue before audit generation.
+`Generate Audit for selected` is intentionally approval-gated:
 
-## Future connectors and approval gates
+- runs preflight only (selected count, batch limit, entitlement remaining, estimate)
+- does **not** trigger live paid generation
+- queues selected opportunities for approval flow (`queued` status + activity events)
+- uses existing entitlement helper (`enforceAuditGeneration`) for safe checks
 
-The architecture supports future adapters, but they are intentionally disabled until approved:
+### Connector diagnostics
 
-- `google_sheets`
-- `google_places`
-- `future_connector`
+Connector diagnostics card reports:
 
-### Env placeholders (documented only)
+- status (`ready` / `mock` / `disabled` / `missing_env` / `requires_approval`)
+- required env vars
+- external API usage flag
+- safe-now boolean
+- last checked time
+- safety note
+
+Connectors shown:
+
+- Mock Local Leads
+- Manual CSV Import
+- Google Sheets Export
+- Google Sheets Import
+- Google Places
+- Website/Domain List
+- Future Scraper Connector
+
+### E2E/integration coverage
+
+No Playwright/Cypress framework is currently installed in this repo.
+
+Phase 2 adds lightweight integration-style coverage through pure interaction utilities and tests:
+
+- selection behavior
+- select all visible behavior
+- import merge behavior
+- export enablement behavior
+
+## Tests added in Phase 2
+
+- `src/lib/leadgen/persistence.test.ts`
+- `src/lib/leadgen/diagnostics.test.ts`
+- `src/lib/leadgen/audit-preflight.test.ts`
+- `src/lib/leadgen/ui-interactions.test.ts`
+
+Existing leadgen tests were updated for new workflow statuses and expanded logic.
+
+## Env placeholders
+
+Documented placeholders (values are never printed):
 
 ```
 GOOGLE_SHEETS_CLIENT_EMAIL=
 GOOGLE_SHEETS_PRIVATE_KEY=
 GOOGLE_SHEETS_SPREADSHEET_ID=
+GOOGLE_PLACES_API_KEY=
 ```
 
-## Approval required before live activation
+## What remains mock/local-only
 
-Before enabling live connectors, explicit approval is required for:
+- No live Google Sheets API call
+- No live Google Places API call
+- No scraping connector
+- No outbound messaging trigger
+- No paid audit generation triggered from LeadGen
 
-- Real Google Places API usage
-- Real Google Sheets API usage
-- Any paid model/API calls
-- Any scraping or outbound automation
+## Approval parking lot (Hamid approval required)
 
-## Suggested next steps
-
-1. Add server-side persistence for LeadOpportunity snapshots.
-2. Add explicit batch status workflow (`reviewed/exported/queued`) tracking.
-3. Add role-scoped audit generation from LeadGen selection.
-4. Add connector health checks + environment diagnostics in UI.
-5. Add E2E route tests once browser test harness is added.
+1. Enabling real Google Sheets import/export API calls.
+2. Enabling real Google Places discovery API calls.
+3. Enabling any scraping connector.
+4. Enabling live paid audit generation execution from LeadGen queue.
+5. Optional dedicated LeadGen Prisma models/migrations (if moving away from reused `ResearchQueueItem`/`FeatureFlag`/`Activity` storage).

@@ -31,10 +31,10 @@ describe("leadgen filters", () => {
   it("filters by source and status", () => {
     const filtered = applyLeadOpportunityFilters(leads, {
       source: "domain_list",
-      status: "new",
+      status: "discovered",
     });
     expect(filtered).toHaveLength(1);
     expect(filtered[0].source).toBe("domain_list");
-    expect(filtered[0].status).toBe("new");
+    expect(filtered[0].status).toBe("discovered");
   });
 });
