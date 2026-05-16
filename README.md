@@ -34,8 +34,10 @@ If model API keys are empty, the app uses deterministic local fallback generatio
 
 - `npm run dev` — local app
 - `npm run build` — production build validation
-- `npm run lint` — lint validation
-- `npm run test` — run automated tests
+- `npm run lint` — eslint with `--max-warnings 0`
+- `npm run typecheck` — `tsc --noEmit`
+- `npm run test` — run automated tests (vitest)
+- `npm run check` — lint + typecheck + test (the local PR-able gate)
 - `npm run db:push` — sync Prisma schema to configured database
 - `npm run db:backfill:workspace` — attach legacy rows to default workspace
 - `npm run db:bootstrap:saas` — seed default global SaaS plan rows
@@ -43,6 +45,9 @@ If model API keys are empty, the app uses deterministic local fallback generatio
 - `npm run db:migrate:deploy` — run production migrations
 - `npm run db:generate` — regenerate Prisma client
 - `npm run db:studio` — inspect leads
+
+See [docs/local-postgres.md](docs/local-postgres.md) for a one-liner local Postgres setup.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for branch policy and PR rules.
 
 ## Deploy (Netlify)
 
