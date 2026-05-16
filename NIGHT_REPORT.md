@@ -209,11 +209,98 @@ Cycles 1-2 from shift 1 covered hygiene + baseline; cycles 3-8 are this shift's 
 
 ### Cycle 25 — Baseline check + final tally for shift 3
 - **Task:** Full `npm run check` after all source-touching shift 3 work.
-- **Why:** Confirm cumulative state honest before logging the wrap.
-- **Files:** none (this cycle).
+- **Why:** Confirm cumulative state honest.
+- **Files:** none.
 - **Checks:** eslint clean, tsc clean, 456/456 vitest.
 - **Result:** ✅ All green. Test files: 70. Tests: 456. Commits ahead of develop: 51.
-- **Commit:** — (no source change; docs update below in commit `<this commit>`).
+- **Commit:** `dbfd62c docs: shift 3 progress — cycles 22-25 + final tally 456/456`.
+- **Next candidate:** reply-assistant tests.
+
+### Cycle 26 — reply-assistant tests
+- **Task:** Cover `draftReplyAssistant` happy + fallback paths.
+- **Why:** AI-powered drafter on /prep/[id]; no regression net.
+- **Files:** `src/lib/automation/reply-assistant.test.ts` (new).
+- **Checks:** tsc clean, vitest (7/7).
+- **Result:** ✅ Pinned: AI verbatim, null fallback copy, 10-entry timeline cap, ISO serialisation, default + explicit objective, metadata for billing/analytics attribution.
+- **Commit:** `f4d0806 test(reply-assistant): cover AI reply drafter happy + fallback (7 tests)`.
+- **Next candidate:** more id="main" anchors.
+
+### Cycle 27 — id="main" on more pages
+- **Task:** Extend a11y skip-link target to prep/brief/sequences/onboarding.
+- **Why:** Cycle 15 wired only 3 pages; long-tail internal pages still cosmetic-link.
+- **Files:** 4 page.tsx edits.
+- **Checks:** eslint + tsc clean.
+- **Result:** ✅ Skip link now functional on 7 of the most-trafficked pages.
+- **Commit:** `8d6ce80 a11y(pages): wire id="main" on prep / brief / sequences / onboarding`.
+- **Next candidate:** architecture doc.
+
+### Cycle 28 — docs/architecture.md
+- **Task:** Text-based architecture diagram + orientation map.
+- **Why:** Future contributors (human or agent) need a navigation map.
+- **Files:** `docs/architecture.md` (new, 186 lines).
+- **Checks:** docs-only.
+- **Result:** ✅ Stack, main product flow, full directory map, 6 invariants, build/deploy chain, runbook section.
+- **Commit:** `a7e9371 docs: docs/architecture.md — 5-minute orientation map`.
+- **Next candidate:** intelligence/narratives tests.
+
+### Cycle 29 — narratives/generate tests
+- **Task:** Cover `generateIntelligenceNarrative`.
+- **Why:** AI provider + local fallback both produce customer-visible copy.
+- **Files:** `src/lib/intelligence/narratives/generate.test.ts` (new).
+- **Checks:** tsc clean, vitest (7/7).
+- **Result:** ✅ Source flag ('gemini' vs 'local-fallback'), defensive coercion when AI returns malformed shape, cost-control caps on AI payload, metadata propagation.
+- **Commit:** `40f050b test(narratives): cover generateIntelligenceNarrative AI + fallback (7 tests)`.
+- **Next candidate:** insights tests.
+
+### Cycle 30 — automation/insights tests
+- **Task:** Cover `getOperationalInsights`.
+- **Why:** Heavy prisma I/O on /admin pages; tenant scoping + thresholds needed regression net.
+- **Files:** `src/lib/automation/insights.test.ts` (new).
+- **Checks:** tsc clean, vitest (8/8).
+- **Result:** ✅ Empty-state safety, 4-way workspace scoping, Won/Lost exclusion, threshold math (20% weak-sequence cap), 7-day rolling window pinned.
+- **Commit:** `2ea90ae test(insights): cover getOperationalInsights workspace scoping + thresholds (8 tests)`.
+- **Next candidate:** baseline check.
+
+### Cycle 31 — Baseline check (mid-shift)
+- **Task:** Full `npm run check` after cycles 26-30.
+- **Files:** none.
+- **Checks:** 478/478 vitest, lint + tsc clean.
+- **Result:** ✅.
+- **Next candidate:** proposals engine tests.
+
+### Cycle 32 — proposals/engine tests + print-button a11y nit
+- **Task:** Cover `buildProposalIntelligence` pricing/timeline/framing math.
+- **Why:** Pure function feeding the customer Proposal block; untested.
+- **Files:** `src/lib/intelligence/proposals/engine.test.ts` (new); minor a11y tweak on `print-button.tsx`; backlog updates parking B-B01.
+- **Checks:** tsc clean, vitest (15/15).
+- **Result:** ✅ Urgency multipliers, timeline threshold at $3000, scope copy from intel painPoints + fallback, ROI framing categories, section-order template override, rounding. Also marked decorative Printer icon `aria-hidden`.
+- **Commit:** `c260713 test(proposals): cover buildProposalIntelligence math + framing (15 tests)`.
+- **Next candidate:** trackEvent tests.
+
+### Cycle 33 — events.ts trackEvent tests
+- **Task:** Cover `trackEvent` swallowed-error contract.
+- **Why:** Same shape as audit-log.ts; same risk of silent regressions.
+- **Files:** `src/lib/events.test.ts` (new).
+- **Checks:** vitest (6/6).
+- **Result:** ✅ Explicit/derived workspaceId paths, null coercions, swallowed prisma failures, non-Error stringify.
+- **Commit:** `26c9af8 test(events): cover trackEvent + fail-safe (6 tests)`.
+- **Next candidate:** analytics wrappers.
+
+### Cycle 34 — analytics wrappers tests
+- **Task:** Cover `trackSalesOsEvent` and `trackProductAnalytics`.
+- **Why:** Tiny but heavily used; prefix + payload composition contract must be stable.
+- **Files:** `src/lib/analytics/events.test.ts` + `src/lib/analytics/product.test.ts` (new).
+- **Checks:** vitest (10/10 across both).
+- **Result:** ✅ 'sales_os.*' and 'product.*' prefixing pinned; workspaceId/leadId positional args, payload merge semantics (caller-supplied workspaceId is OVERWRITTEN by the wrapper for attribution integrity).
+- **Commit:** `5086659 test(analytics): cover SalesOsEvent + product analytics wrappers (10 tests)`.
+- **Next candidate:** final baseline + report sync.
+
+### Cycle 35 — Final baseline check + report sync
+- **Task:** Full `npm run check` + record cycles 26-34.
+- **Files:** none (this commit).
+- **Checks:** **509/509 vitest, 77 test files**, lint clean, tsc clean.
+- **Result:** ✅ All green. Commits ahead of develop: 60. From baseline 212/45 → +297 tests, +32 test files.
+- **Commit:** this docs update.
 - **Next candidate:** keep cycling.
 
 ## Approval Parking Lot
@@ -233,7 +320,7 @@ Items that need Hamid's sign-off before they can ship. Documented and skipped pe
 
 ## TL;DR
 
-**51 small commits** across three shifts. Lint clean, `tsc --noEmit` clean, **456/456 tests passing** (was 212/212 at start of shift 1 — **+244 tests, +25 test files**), production build green (#3 of 5 budget used). Shift 3 has 23 documented work cycles (3 through 25) per the full-shift rule.
+**60 small commits** across three shifts. Lint clean, `tsc --noEmit` clean, **509/509 tests passing** (was 212/212 at start of shift 1 — **+297 tests, +32 test files**), production build green (#3 of 5 budget used). Shift 3 has 33 documented work cycles (3 through 35) per the full-shift rule. Branch pushed to origin after each commit.
 
 Shift 1 (7 commits): hygiene + UX safety net (loading/404) + logger redaction + CI workflow + print stylesheet + CSV tests.
 
