@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ArrowRight, CheckCircle2, ExternalLink, MapPin, ShieldCheck, Sparkles, Star, XCircle } from "lucide-react";
 import { AuditViewTracker } from "@/components/audit-view-tracker";
@@ -49,6 +50,61 @@ const alwaysDeliverables = [
   { title: "Local SEO foundation", detail: "Title tags, meta descriptions, and schema markup so Google can correctly show your site to nearby searchers." },
   { title: "30-day revision window", detail: "After launch, you get 30 days of included edits — no extra charge." },
 ];
+
+/**
+ * Per-audit Open Graph metadata so a shared link in Slack / iMessage /
+ * Twitter etc. unfurls with the prospect's business name. We deliberately
+ * fall back to a generic title when the access token is missing or
+ * invalid — don't leak business names to crawlers that don't have the
+ * signed link. robots:noindex on every audit page (these are 1:1 cold-
+ * outreach assets, not search-engine targets).
+ */
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ token?: string }>;
+}): Promise<Metadata> {
+  const generic: Metadata = {
+    title: `${BRAND.productName} audit`,
+    description: "Personalised AuditGen findings for your business.",
+    robots: { index: false, follow: false },
+  };
+  try {
+    const { id } = await params;
+    const query = await searchParams;
+    const token = query.token ? String(query.token) : "";
+    if (isAuthEnabled() && !verifyAuditAccessToken(token, id)) {
+      return generic;
+    }
+    const lead = await prisma.lead.findUnique({
+      where: { id },
+      select: { businessName: true, location: true },
+    });
+    if (!lead) return generic;
+    const where = lead.location ? `${lead.businessName} · ${lead.location}` : lead.businessName;
+    const title = `${lead.businessName} · ${BRAND.productName} audit`;
+    const description = `Personalised audit and growth recommendations for ${where}.`;
+    return {
+      title,
+      description,
+      robots: { index: false, follow: false },
+      openGraph: {
+        type: "article",
+        title,
+        description,
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+      },
+    };
+  } catch {
+    return generic;
+  }
+}
 
 function scoreCopy(score: number) {
   if (score >= 85) return { label: "High opportunity", className: "bg-rose-500 text-white", copy: "This business has clear conversion gaps that can likely be turned into more calls, quotes, and booked jobs." };

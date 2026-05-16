@@ -14,13 +14,40 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const defaultTitle = `${BRAND.productName} — ${BRAND.tagline}`;
+
 export const metadata: Metadata = {
-  title: `${BRAND.productName} — ${BRAND.tagline}`,
+  title: {
+    default: defaultTitle,
+    template: `%s · ${BRAND.productName}`,
+  },
   description: BRAND.description,
   metadataBase: getAppOrigin() ? new URL(getAppOrigin()) : undefined,
   icons: {
     icon: "/brand/auditgen-icon.svg",
     apple: "/brand/auditgen-icon.svg",
+  },
+  openGraph: {
+    type: "website",
+    siteName: BRAND.productName,
+    title: defaultTitle,
+    description: BRAND.description,
+    images: [
+      {
+        url: "/brand/auditgen-logo-horizontal.svg",
+        alt: `${BRAND.productName} logo`,
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: defaultTitle,
+    description: BRAND.description,
+    images: ["/brand/auditgen-logo-horizontal.svg"],
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 
