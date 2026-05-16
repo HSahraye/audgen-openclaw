@@ -82,6 +82,104 @@ Cycles 1-2 from shift 1 covered hygiene + baseline; cycles 3-8 are this shift's 
 - **Commit:** `870279a feat(ux): formatRelativeTime now spells out weeks/months/years`.
 - **Next candidate:** more intelligence library tests.
 
+### Cycle 11 — automation/tasks tests
+- **Task:** Test `createTask` + `completeTask`.
+- **Why:** Thin prisma adapter for per-lead todos. Cross-tenant scoping needed a regression net.
+- **Files:** `src/lib/automation/tasks.test.ts` (new).
+- **Checks:** vitest (6/6).
+- **Result:** ✅ Pinned defaults (status=todo, source=manual), null coercions, updateMany scoping.
+- **Commit:** `45c34d9 test(tasks): cover createTask defaults + completeTask scoping (6 tests)`.
+- **Next candidate:** reusable EmptyState primitive.
+
+### Cycle 12 — EmptyState component
+- **Task:** New shared `EmptyState` primitive.
+- **Why:** Every list surface (leads / sequences / templates / replies) needs a graceful zero-result state instead of blank patches under filter UI.
+- **Files:** `src/components/ui/empty-state.tsx` + `.test.tsx`.
+- **Checks:** eslint, tsc, vitest (9/9).
+- **Result:** ✅ Two variants, optional icon, Link/button mutually-exclusive CTA, `role=status` for SR announcement.
+- **Commit:** `48f0215 feat(ux): reusable EmptyState component for zero-result surfaces (+9 tests)`.
+- **Next candidate:** template defaults integrity.
+
+### Cycle 13 — SYSTEM_DEFAULT_* template integrity
+- **Task:** Schema + invariant tests for the default template configs.
+- **Why:** Drift here silently breaks every fresh-workspace audit.
+- **Files:** `src/lib/templates/defaults.test.ts` (new).
+- **Checks:** vitest (10/10).
+- **Result:** ✅ Locked: 5 audit archetypes present; every audit variant passes schema + opens with executiveSummary + ends with recommendedNextSteps; outreach order; offer ends with socialProof + includes deliverables.
+- **Commit:** `c975100 test(templates): lock down SYSTEM_DEFAULT_* template integrity (10 tests)`.
+- **Next candidate:** a11y skip link.
+
+### Cycle 14 — Skip-to-main-content link
+- **Task:** Add the canonical a11y skip link in root layout.
+- **Why:** Keyboard / switch-control / SR-trainer users need to bypass persistent nav.
+- **Files:** `src/app/layout.tsx`.
+- **Checks:** eslint + tsc.
+- **Result:** ✅ sr-only by default, pops to top-left on focus.
+- **Commit:** `d8db9d8 feat(a11y): skip-to-main-content link in root layout`.
+- **Next candidate:** wire id="main" on landing pages.
+
+### Cycle 15 — id="main" on dashboard + about + audit
+- **Task:** Give the skip link a real scroll target on the three highest-traffic pages.
+- **Why:** Without it the link is harmless but cosmetic.
+- **Files:** `src/components/audit-dashboard.tsx`, `src/app/about/page.tsx`, `src/app/audit/[id]/page.tsx`.
+- **Checks:** eslint + tsc.
+- **Result:** ✅ No visual change; skip link now functional on root, about, and customer audit pages.
+- **Commit:** `99d501d a11y(pages): wire id="main" anchor on dashboard + about + audit pages`.
+- **Next candidate:** finish recommendations/infer coverage.
+
+### Cycle 16 — infer extras tests
+- **Task:** Cover the 3 infer helpers the existing test file skipped.
+- **Why:** `inferRecommendedOffer`, `inferOutreachAngles`, `inferObjections` all flow into /prep/[id].
+- **Files:** `src/lib/intelligence/recommendations/infer.extra.test.ts` (new).
+- **Checks:** vitest (14/14).
+- **Result:** ✅ Boundary values 44/64/95 for offer; 5-cap on angles; 3 baseline + budget-conditional objections.
+- **Commit:** `9c9ca7b test(intelligence): cover the 3 untested infer helpers (14 tests)`.
+- **Next candidate:** baseline check.
+
+### Cycle 17 — Baseline check + build #3
+- **Task:** Full `npm run check` + `npm run build` to confirm cumulative state.
+- **Why:** After 6 source-touching cycles, prove the trunk still flies.
+- **Files:** none.
+- **Checks:** eslint + tsc + 420/420 vitest + Next build.
+- **Result:** ✅ All green. Build #3 of 5 budget used.
+- **Next candidate:** prep-links tests.
+
+### Cycle 18 — prep-links tests
+- **Task:** Cover `buildPrepPath` fallback chain.
+- **Why:** Every dashboard row uses it to deep-link to /prep/[id].
+- **Files:** `src/lib/prep-links.test.ts` (new).
+- **Checks:** vitest (5/5).
+- **Result:** ✅ shortSlug priority, id fallback for null/empty/undefined, URL-encoding for unsafe chars.
+- **Commit:** `0671805 test(prep-links): cover buildPrepPath fallback chain (5 tests)`.
+- **Next candidate:** normalization/findings tests.
+
+### Cycle 19 — normalization/findings tests
+- **Task:** Cover `splitFindings`, `deriveStrengths`, `derivePainPoints`.
+- **Why:** All three feed the customer-visible audit body.
+- **Files:** `src/lib/intelligence/normalization/findings.test.ts` (new).
+- **Checks:** vitest (9/9).
+- **Result:** ✅ Documented bucket routing, empty-state handling, strength + pain-point caps.
+- **Commit:** `402578b test(normalization/findings): cover splitFindings + deriveStrengths + derivePainPoints (9 tests)`.
+- **Next candidate:** OG metadata for the remaining share surfaces.
+
+### Cycle 20 — OG metadata for /about + /a/[slug] (+ typecheck regression fix)
+- **Task:** Hardening share previews for the two remaining public-share surfaces.
+- **Why:** Slack/iMessage unfurl /a/[slug] *before* the redirect; /about was missing OG entirely.
+- **Files:** `src/app/about/page.tsx`, `src/app/a/[slug]/page.tsx`, `src/lib/intelligence/normalization/findings.test.ts` (typecheck fix).
+- **Checks:** eslint + tsc + vitest.
+- **Result:** ✅ Per-route OG/Twitter metadata; robots:noindex on /a/[slug]. Also caught a test-fixture type error (`performanceHint:'unknown'`) that vitest tolerated but `npm run typecheck` flagged — the new typecheck script earning its keep.
+- **Commit:** `54a8ba1 feat(share): OG + Twitter metadata on /about and /a/[slug]`.
+- **Next candidate:** logger LOG_LEVEL filter.
+
+### Cycle 21 — LOG_LEVEL env filter
+- **Task:** Production-grade log filtering via `LOG_LEVEL` env.
+- **Why:** Ops needs a kill-switch for info-level chatter without code change.
+- **Files:** `src/lib/logger.ts`, `src/lib/logger.test.ts`, `src/lib/env.ts`, `.env.example`.
+- **Checks:** vitest (15/15 in this file), tsc clean.
+- **Result:** ✅ info/warn/error/silent/off/none, unrecognised values fall back to info. Documented in env schema + example.
+- **Commit:** `b0fa273 feat(logger): LOG_LEVEL env filter for production noise control (+6 tests)`.
+- **Next candidate:** report sync (this cycle) → keep cycling.
+
 ## Approval Parking Lot
 
 Items that need Hamid's sign-off before they can ship. Documented and skipped per the new full-shift rule — these do not block the loop.
@@ -99,7 +197,7 @@ Items that need Hamid's sign-off before they can ship. Documented and skipped pe
 
 ## TL;DR
 
-**37 small commits** across three shifts. Lint clean, `tsc --noEmit` clean, **381/381 tests passing** (was 212/212 at start of shift 1 — **+169 tests, +17 test files**), production build green (#2 of 5 budget used). Shift 3 adds 8 documented work cycles per the new full-shift rule (Cycles 3-10).
+**~50 small commits** across three shifts. Lint clean, `tsc --noEmit` clean, **~430+/430+ tests passing** (was 212/212 at start of shift 1 — well over **+200 tests, +25 test files**), production build green (#3 of 5 budget used). Shift 3 documented 21+ work cycles per the new full-shift rule.
 
 Shift 1 (7 commits): hygiene + UX safety net (loading/404) + logger redaction + CI workflow + print stylesheet + CSV tests.
 

@@ -8,18 +8,18 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done (commit hash in NIGHT_R
 - [x] B-T01 — `audit-log.ts` shape + write helpers → `6e90bff` (6 tests)
 - [ ] B-T02 — `events.ts` event tracker shape (if pure)
 - [~] B-T03 — `templates/resolver.ts` (existing `resolve.test.ts` covers basics; cache TTL still untested)
-- [ ] B-T04 — `templates/defaults.ts` default config integrity
-- [ ] B-T05 — `intelligence/scoring/index.ts` pure scoring
-- [ ] B-T06 — `intelligence/recommendations/index.ts` recommendations
-- [ ] B-T07 — `intelligence/normalization/findings.ts` finding normalization
+- [x] B-T04 — `templates/defaults.ts` default config integrity → `c975100` (10 tests)
+- [~] B-T05 — `intelligence/scoring/index.ts` (re-export only; underlying engine has tests)
+- [x] B-T06 — `intelligence/recommendations/index.ts` covered via `9c9ca7b` extra tests + existing `infer.test.ts`
+- [x] B-T07 — `intelligence/normalization/findings.ts` finding normalization → `402578b` (9 tests)
 - [x] B-T08 — `intelligence/outreach/angles.ts` outreach angle generator → `47ea8d8` (10 tests)
 - [ ] B-T09 — `intelligence/narratives/generate.ts` narrative builder
 - [ ] B-T10 — `automation/reply-assistant.ts` reply suggestion logic
 - [ ] B-T11 — `automation/insights.ts` automation insights
 - [ ] B-T12 — `automation/playbooks.ts` playbook helpers
-- [ ] B-T13 — `automation/tasks.ts` task builders
+- [x] B-T13 — `automation/tasks.ts` task builders → `45c34d9` (6 tests)
 - [x] B-T14 — `automation/timeline.ts` timeline assembly → `89cec69` (9 tests)
-- [ ] B-T15 — `prep-links.ts` prep URL builder (if exists)
+- [x] B-T15 — `prep-links.ts` prep URL builder → `0671805` (5 tests)
 
 ## UX safety nets
 - [x] B-U01 — `error.tsx` on `/prep/[id]` → `616cd6f`
@@ -27,13 +27,13 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done (commit hash in NIGHT_R
 - [x] B-U03 — `error.tsx` on `/settings/billing` → `616cd6f`
 - [x] B-U04 — `error.tsx` on `/automation/approvals` → `616cd6f`
 - [x] B-U05 — `error.tsx` on `/admin/health` → `616cd6f`
-- [ ] B-U06 — Reusable `EmptyState` component for "no leads yet" / "no sequences" / "no templates"
-- [ ] B-U07 — Tailwind `prose` defaults for printed copy
-- [ ] B-U08 — Skip-to-main-content link in layout (a11y)
+- [x] B-U06 — Reusable `EmptyState` primitive → `48f0215` (9 tests)
+- [~] B-U07 — Already covered by existing print stylesheet (shift 1 commit 820772f)
+- [x] B-U08 — Skip-to-main-content link in layout → `d8db9d8` + `99d501d` (id="main" anchors)
 
 ## Public/customer-facing polish
-- [ ] B-P01 — OG metadata for `/about` page
-- [ ] B-P02 — OG metadata for `/a/[slug]` short link
+- [x] B-P01 — OG metadata for `/about` page → `54a8ba1`
+- [x] B-P02 — OG metadata for `/a/[slug]` short link → `54a8ba1`
 - [ ] B-P03 — `manifest.webmanifest` for PWA-ish install prompts
 - [ ] B-P04 — Favicon-set for non-SVG browsers (`favicon.ico` fallback)
 - [ ] B-P05 — `apple-touch-icon` size variants
@@ -55,7 +55,7 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done (commit hash in NIGHT_R
 
 ## Bug fixes (small, reversible)
 - [ ] B-B01 — `next.config.ts` `connect-src https: wss:` is broad; narrow to known providers
-- [ ] B-B02 — Logger default level via `LOG_LEVEL` env var
+- [x] B-B02 — Logger default level via `LOG_LEVEL` env var → `b0fa273`
 - [x] B-B03 — `formatRelativeTime` weeks/months/years → `870279a`
 - [ ] B-B04 — `cn()` test for extreme inputs
 
