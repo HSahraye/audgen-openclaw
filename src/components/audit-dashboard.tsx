@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { memo, useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { Fragment, memo, useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
 import { ArrowUpRight, BarChart3, CheckCircle2, Copy, ExternalLink, Filter, Loader2, Mail, Phone, Radar, Search, Share2, Sparkles, Trash2, XCircle } from "lucide-react";
 import { createCaseStudyAction } from "@/app/actions/case-studies";
@@ -810,10 +810,10 @@ export function AuditDashboard({
               <div className="min-w-0">
                 <AuditGenBrandLockup />
                 <h1 className="mt-4 max-w-3xl text-3xl font-black tracking-tight text-[#0F172A] sm:text-[2.05rem]">
-                  Turn local business research into client-ready audits.
+                  Find, qualify, and close high-fit local business leads with one AI Sales OS.
                 </h1>
                 <p className="mt-3 max-w-3xl text-sm leading-6 text-[#64748B]">
-                  Import leads, generate AI-assisted audits, prepare outreach, and track agency sales activity from one operating system.
+                  Stop wasting hours switching between scraping tools, cold outreach software, and CRMs. Discover local business service opportunities, score their online presence gaps, generate conversion-focused AI audits, and manage your entire sales motion inside AudGen.
                 </p>
                 <div className="mt-4 flex flex-wrap items-center gap-2">
                   <span className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700">AI audits</span>
@@ -832,13 +832,20 @@ export function AuditDashboard({
                 <div className="mt-5 rounded-2xl border border-slate-200/80 bg-white/80 p-3 shadow-sm backdrop-blur-sm">
                   <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">How {BRANDING_CONFIG.appName} works</p>
                   <div className="mt-3 flex flex-wrap items-center gap-1.5 sm:gap-2">
-                    <span className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700">Import Leads</span>
-                    <span className="inline-flex size-6 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-black text-slate-500">→</span>
-                    <span className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700">Generate AI Audit</span>
-                    <span className="inline-flex size-6 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-black text-slate-500">→</span>
-                    <span className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700">Prep Outreach</span>
-                    <span className="inline-flex size-6 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-black text-slate-500">→</span>
-                    <span className="inline-flex h-9 items-center rounded-xl border border-emerald-200 bg-emerald-50 px-3 text-xs font-black text-emerald-800">Track Revenue</span>
+                    {["Find Leads", "Qualify Gaps", "Generate AI Audits", "Run Outreach", "Track Revenue"].map((step, index, steps) => (
+                      <Fragment key={step}>
+                        <span className={`inline-flex h-9 items-center rounded-xl px-3 text-xs font-black ${
+                          index === steps.length - 1
+                            ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
+                            : "border border-slate-200 bg-white text-slate-700"
+                        }`}>
+                          {step}
+                        </span>
+                        {index < steps.length - 1 ? (
+                          <span className="inline-flex size-6 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-black text-slate-500">→</span>
+                        ) : null}
+                      </Fragment>
+                    ))}
                   </div>
                 </div>
               </div>
