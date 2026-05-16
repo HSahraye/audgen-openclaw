@@ -57,7 +57,8 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done (commit hash in NIGHT_R
 - [→parking-lot] B-B01 — narrow `connect-src` CSP. Moved to Approval Parking Lot: risk of breaking production if I miss an active provider domain. Needs prod observability first.
 - [x] B-B02 — Logger default level via `LOG_LEVEL` env var → `b0fa273`
 - [x] B-B03 — `formatRelativeTime` weeks/months/years → `870279a`
-- [ ] B-B04 — `cn()` test for extreme inputs
+- [ ] B-B04 — `cn()` test for extreme inputs (low priority — underlying libs are well-tested)
+- [ ] B-B05 — `getPublicBaseUrl` whitespace-only `NEXT_PUBLIC_APP_URL` falls through to localhost instead of `APP_URL`. Tiny: change to `??` or trim before `||`. Pinned in `src/lib/url.test.ts`. Safe to fix in a follow-up PR after deciding whether anyone is intentionally relying on the current behaviour.
 
 ## Refactors (behaviour-preserving)
 - [ ] B-R01 — Extract `localAssets` from `audit-engine.ts` (still inline, 100+ lines)
