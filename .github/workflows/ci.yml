@@ -1,0 +1,66 @@
+name: CI
+
+# Lightweight quality gate for PRs and pushes against the integration
+# branches. Does NOT deploy, does NOT touch any database, does NOT need
+# any provider secrets. Uses a placeholder Postgres DATABASE_URL so the
+# zod env parser in src/lib/env.ts is happy without anyone storing real
+# credentials in GitHub.
+#
+# If you later want to enable the real build step, add a workspace
+# environment in the GitHub repo settings and set the required vars
+# from .env.example — but keep this minimal job as the always-on gate.
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: lint + typecheck + test + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # zod requires a non-empty postgres URL; nothing in CI ever connects.
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/audgen_ci?schema=public"
+      NEXT_TELEMETRY_DISABLED: "1"
+      NODE_ENV: "test"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Prisma generate (no DB write)
+        run: npm run db:generate
+
+      - name: Lint
+        run: npx eslint . --max-warnings 0
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npm test --silent
+
+      - name: Build
+        env:
+          NODE_ENV: "production"
+          # next.config.ts forwards security headers; build must not enforce
+          # the production env validator without real secrets.
+          ENFORCE_ENV_VALIDATION: "false"
+        run: npm run build
