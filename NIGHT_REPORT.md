@@ -178,7 +178,43 @@ Cycles 1-2 from shift 1 covered hygiene + baseline; cycles 3-8 are this shift's 
 - **Checks:** vitest (15/15 in this file), tsc clean.
 - **Result:** ✅ info/warn/error/silent/off/none, unrecognised values fall back to info. Documented in env schema + example.
 - **Commit:** `b0fa273 feat(logger): LOG_LEVEL env filter for production noise control (+6 tests)`.
-- **Next candidate:** report sync (this cycle) → keep cycling.
+- **Next candidate:** report sync.
+
+### Cycle 22 — Docs reconciliation
+- **Task:** Backfill NIGHT_REPORT + AUTOPILOT_BACKLOG entries for cycles 11-21.
+- **Why:** Full-shift rule requires per-cycle records.
+- **Files:** `NIGHT_REPORT.md`, `AUTOPILOT_BACKLOG.md`.
+- **Checks:** docs-only.
+- **Result:** ✅ 11 cycle entries appended; backlog ticked off with commit hashes.
+- **Commit:** `4236327 docs: record cycles 11-21 + reconcile backlog state`.
+- **Next candidate:** playbooks coverage.
+
+### Cycle 23 — playbooks tests
+- **Task:** Test `createPlaybook` + `applyPlaybookToLead`.
+- **Why:** Playbook → Sequence orchestration was untested; failure-propagation contract needed pinning.
+- **Files:** `src/lib/automation/playbooks.test.ts` (new).
+- **Checks:** tsc clean; vitest (9/9).
+- **Result:** ✅ Pinned sequence-creation conditional, default-name suffix, failure propagation from startLeadSequence, lookup scoping to workspaceId AND isActive.
+- **Commit:** `3aeb2d0 test(playbooks): cover createPlaybook + applyPlaybookToLead (9 tests)`.
+- **Next candidate:** auth scrub edge cases.
+
+### Cycle 24 — auth scrub edge tests
+- **Task:** Edge-case coverage for `scrubTokens` in /api/auth/[...all].
+- **Why:** Critical narrow-scope contract (only literal 'token' key) needed an explicit regression net so a 'helpful' broader rewrite can't silently change the auth response shape.
+- **Files:** `src/app/api/auth/scrub.edge.test.ts` (new).
+- **Checks:** vitest (7/7).
+- **Result:** ✅ Primitives, deep nesting, arrays-of-arrays, empty containers, narrow-key contract ('tokens'/'tokenHash'/'accessToken'/'refreshToken' all survive), nested type/value fidelity.
+- **Commit:** `6e206da test(auth): edge-case coverage for scrubTokens (7 tests)`.
+- **Next candidate:** baseline check.
+
+### Cycle 25 — Baseline check + final tally for shift 3
+- **Task:** Full `npm run check` after all source-touching shift 3 work.
+- **Why:** Confirm cumulative state honest before logging the wrap.
+- **Files:** none (this cycle).
+- **Checks:** eslint clean, tsc clean, 456/456 vitest.
+- **Result:** ✅ All green. Test files: 70. Tests: 456. Commits ahead of develop: 51.
+- **Commit:** — (no source change; docs update below in commit `<this commit>`).
+- **Next candidate:** keep cycling.
 
 ## Approval Parking Lot
 
@@ -197,7 +233,7 @@ Items that need Hamid's sign-off before they can ship. Documented and skipped pe
 
 ## TL;DR
 
-**~50 small commits** across three shifts. Lint clean, `tsc --noEmit` clean, **~430+/430+ tests passing** (was 212/212 at start of shift 1 — well over **+200 tests, +25 test files**), production build green (#3 of 5 budget used). Shift 3 documented 21+ work cycles per the new full-shift rule.
+**51 small commits** across three shifts. Lint clean, `tsc --noEmit` clean, **456/456 tests passing** (was 212/212 at start of shift 1 — **+244 tests, +25 test files**), production build green (#3 of 5 budget used). Shift 3 has 23 documented work cycles (3 through 25) per the full-shift rule.
 
 Shift 1 (7 commits): hygiene + UX safety net (loading/404) + logger redaction + CI workflow + print stylesheet + CSV tests.
 
