@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { redactForLogs } from "./logger";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { logger, redactForLogs } from "./logger";
 
 describe("redactForLogs", () => {
   it("redacts top-level secret-looking keys regardless of casing", () => {
@@ -87,7 +87,6 @@ describe("redactForLogs", () => {
     }
     const out = redactForLogs(root) as { v: number; next?: unknown };
     expect(out.v).toBe(0);
-    // somewhere down the chain, we should see the depth marker
     let asAny: unknown = out;
     let sawLimit = false;
     for (let i = 0; i < 25; i += 1) {
@@ -102,5 +101,84 @@ describe("redactForLogs", () => {
       }
     }
     expect(sawLimit).toBe(true);
+  });
+});
+
+describe("logger LOG_LEVEL filter", () => {
+  const SAVED = process.env.LOG_LEVEL;
+  let infoSpy: ReturnType<typeof vi.spyOn>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    infoSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    infoSpy.mockRestore();
+    warnSpy.mockRestore();
+    errorSpy.mockRestore();
+    if (SAVED === undefined) delete process.env.LOG_LEVEL;
+    else process.env.LOG_LEVEL = SAVED;
+  });
+
+  it("defaults to info (emits all three levels)", () => {
+    delete process.env.LOG_LEVEL;
+    logger.info("i");
+    logger.warn("w");
+    logger.error("e");
+    expect(infoSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("LOG_LEVEL=warn suppresses info but emits warn + error", () => {
+    process.env.LOG_LEVEL = "warn";
+    logger.info("i");
+    logger.warn("w");
+    logger.error("e");
+    expect(infoSpy).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("LOG_LEVEL=error only emits errors", () => {
+    process.env.LOG_LEVEL = "error";
+    logger.info("i");
+    logger.warn("w");
+    logger.error("e");
+    expect(infoSpy).not.toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("LOG_LEVEL=silent suppresses everything", () => {
+    process.env.LOG_LEVEL = "silent";
+    logger.info("i");
+    logger.warn("w");
+    logger.error("e");
+    expect(infoSpy).not.toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it("LOG_LEVEL=off and LOG_LEVEL=none are aliases for silent", () => {
+    process.env.LOG_LEVEL = "off";
+    logger.error("e");
+    expect(errorSpy).not.toHaveBeenCalled();
+    errorSpy.mockClear();
+    process.env.LOG_LEVEL = "none";
+    logger.error("e");
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it("unrecognised LOG_LEVEL falls back to info default", () => {
+    process.env.LOG_LEVEL = "verbose"; // not a supported value
+    logger.info("i");
+    logger.warn("w");
+    expect(infoSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledTimes(1);
   });
 });

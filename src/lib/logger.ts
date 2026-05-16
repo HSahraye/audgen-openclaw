@@ -100,7 +100,30 @@ export function redactForLogs(value: unknown): unknown {
   return redact(value);
 }
 
+/**
+ * Numeric priority used by the LOG_LEVEL filter. Higher = more severe.
+ * LOG_LEVEL="warn" suppresses info but still emits warn + error.
+ */
+const LEVEL_PRIORITY: Record<LogLevel, number> = {
+  info: 10,
+  warn: 20,
+  error: 30,
+};
+
+function minLevelFromEnv(): number {
+  const raw = (process.env.LOG_LEVEL || "").toLowerCase().trim();
+  if (raw === "info" || raw === "warn" || raw === "error") {
+    return LEVEL_PRIORITY[raw];
+  }
+  if (raw === "silent" || raw === "off" || raw === "none") {
+    // Anything above the highest real level suppresses everything.
+    return LEVEL_PRIORITY.error + 1;
+  }
+  return LEVEL_PRIORITY.info;
+}
+
 function emit(level: LogLevel, message: string, meta?: Record<string, unknown>) {
+  if (LEVEL_PRIORITY[level] < minLevelFromEnv()) return;
   const scrubbedMeta =
     meta && Object.keys(meta).length > 0
       ? (redact(meta) as Record<string, unknown>)

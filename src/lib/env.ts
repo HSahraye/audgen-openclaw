@@ -57,6 +57,10 @@ const envSchema = z.object({
   // workspaceId=null (legacy orphan rows). Leave unset in production.
   ALLOW_WORKSPACE_NULL_FALLBACK: z.enum(["true", "false"]).optional(),
   SENTRY_DSN: z.string().optional(),
+  // Filter for the JSON logger. "info" (default) emits everything; "warn"
+  // suppresses info-level chatter; "error" only emits errors; "silent"/
+  // "off"/"none" suppresses all log output (test runs).
+  LOG_LEVEL: z.enum(["info", "warn", "error", "silent", "off", "none"]).optional(),
   NEXT_PUBLIC_POSTHOG_KEY: z.string().optional(),
   NEXT_PUBLIC_POSTHOG_HOST: z.string().optional(),
 });
