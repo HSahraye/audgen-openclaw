@@ -26,3 +26,9 @@ export function mergeImportedLeads(current: LeadOpportunity[], imported: LeadOpp
 export function canExportSelected(selectedCount: number) {
   return selectedCount > 0;
 }
+
+export function buildSelectionHint(selectedCount: number) {
+  return selectedCount > 0
+    ? `${selectedCount} lead(s) selected.`
+    : "Select leads to export, queue, or run audit preflight.";
+}

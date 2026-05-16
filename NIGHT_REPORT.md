@@ -187,3 +187,31 @@ Safety maintained:
 - No destructive DB commands
 - No external connector activation
 - No outbound automation
+
+---
+
+## Day Operator Addendum — LeadGen QA Hardening
+
+Focused QA hardening/polish pass based on deploy-preview screenshots:
+
+- Reworked `/leadgen` control accessibility to ensure form controls have stable `id`/`name` attributes.
+- Improved table readability with fixed column sizing, clearer badges, and stronger selected-row state.
+- Improved responsive behavior and spacing for CTA row, card grid, and table overflow.
+- Added explicit disabled-state hints for selection-dependent actions.
+- Added robust empty states:
+  - no persisted opportunities
+  - no filter matches
+  - load sample leads helper path
+- Added helper route hardening:
+  - `/api/health` JSON endpoint
+  - `robots.txt` route
+  - `sitemap.xml` route
+- CSP screenshot warning about `app.netlify.com` frame is documented as preview-toolbar noise; no broad CSP relaxation was applied.
+- Added QA test coverage for health route and additional LeadGen interaction helpers.
+
+Brand naming alignment remains pending Hamid decision across:
+
+- AudGen
+- AuditGen
+- SaleGen
+- Presence Labs

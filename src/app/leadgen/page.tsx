@@ -2,7 +2,6 @@ import { LeadGenCommandCenter } from "@/components/leadgen-command-center";
 import { requireRole } from "@/lib/auth";
 import { buildConnectorDiagnostics } from "@/lib/leadgen/diagnostics";
 import {
-  ensureLeadgenSeedData,
   listLeadgenActivities,
   listLeadgenOpportunities,
   listLeadgenSavedViews,
@@ -14,7 +13,6 @@ export const dynamic = "force-dynamic";
 export default async function LeadgenPage() {
   await requireRole(["owner", "admin", "sales", "viewer", "member"]);
   const { workspaceId } = await getWorkspaceContext();
-  await ensureLeadgenSeedData(workspaceId);
   const [opportunities, savedViews, activities] = await Promise.all([
     listLeadgenOpportunities(workspaceId),
     listLeadgenSavedViews(workspaceId),

@@ -158,3 +158,29 @@ GOOGLE_PLACES_API_KEY=
 3. Enabling any scraping connector.
 4. Enabling live paid audit generation execution from LeadGen queue.
 5. Optional dedicated LeadGen Prisma models/migrations (if moving away from reused `ResearchQueueItem`/`FeatureFlag`/`Activity` storage).
+
+## QA hardening notes
+
+- Added explicit `id`/`name` attributes across LeadGen form controls to address browser form-field warnings.
+- Improved table scanability with fixed column widths, clearer status/opportunity badges, and consistent row highlight styling.
+- Improved mobile/laptop behavior with cleaner section spacing and horizontal table overflow handling.
+- Added helpful disabled-state messaging for selection-based actions.
+- Added explicit empty states for:
+  - no persisted opportunities
+  - no filter matches
+- Added helper action for loading sample opportunities safely when workspace has no LeadGen records.
+
+## Console/CSP observation
+
+- The CSP warning seen in deploy-preview screenshots references `https://app.netlify.com` in `frame-src`.
+- This is preview-toolbar/Netlify overlay behavior, not required app functionality.
+- No CSP broadening was applied.
+
+## Brand naming follow-up
+
+Brand naming remains pending Hamid decision across:
+
+- AudGen
+- AuditGen
+- SaleGen
+- Presence Labs

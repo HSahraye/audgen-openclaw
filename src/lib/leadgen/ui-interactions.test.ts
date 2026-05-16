@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getMockLeadOpportunities } from "@/lib/leadgen/mock-data";
 import {
+  buildSelectionHint,
   canExportSelected,
   mergeImportedLeads,
   selectAllVisibleLeads,
@@ -34,5 +35,10 @@ describe("leadgen UI interaction helpers", () => {
   it("enables export only when selection exists", () => {
     expect(canExportSelected(0)).toBe(false);
     expect(canExportSelected(3)).toBe(true);
+  });
+
+  it("returns useful selection hint message", () => {
+    expect(buildSelectionHint(0)).toContain("Select leads");
+    expect(buildSelectionHint(2)).toContain("2 lead(s) selected");
   });
 });
