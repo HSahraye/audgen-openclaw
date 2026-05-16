@@ -1,5 +1,5 @@
 import { GooglePlacesAdapter } from "@/lib/leadgen/live-adapters/google-places-adapter";
-import type { LiveAdapterQuery } from "@/lib/leadgen/live-adapters/types";
+import type { LiveAdapterFetchResult, LiveAdapterProviderError, LiveAdapterQuery } from "@/lib/leadgen/live-adapters/types";
 import { YelpAPIAdapter } from "@/lib/leadgen/live-adapters/yelp-api-adapter";
 import { getMockLeadOpportunities } from "@/lib/leadgen/mock-data";
 import type { LeadOpportunity, LeadSourceType } from "@/lib/leadgen/types";
@@ -19,7 +19,7 @@ export type LeadSourceAdapter = {
   enabled: boolean;
   requiresEnv: string[];
   safetyNotes: string;
-  fetchLeads: (query?: LiveAdapterQuery) => Promise<LeadOpportunity[]>;
+  fetchLeads: (query?: LiveAdapterQuery) => Promise<LiveAdapterFetchResult>;
 };
 
 function disabledAdapter(
@@ -37,7 +37,12 @@ function disabledAdapter(
     requiresEnv,
     safetyNotes,
     async fetchLeads() {
-      return [];
+      return {
+        status: "READY",
+        leads: [],
+        blocked: false,
+        message: `${label} is disabled.`,
+      };
     },
   };
 }
@@ -57,7 +62,12 @@ export function getLeadSourceAdapters(flags: ConnectorEnvFlags = {}): LeadSource
     requiresEnv: [],
     safetyNotes: "No external calls. Deterministic local data only.",
     async fetchLeads() {
-      return getMockLeadOpportunities();
+      return {
+        status: "READY",
+        leads: getMockLeadOpportunities(),
+        blocked: false,
+        message: "Mock local leads loaded.",
+      };
     },
   };
 
@@ -69,7 +79,12 @@ export function getLeadSourceAdapters(flags: ConnectorEnvFlags = {}): LeadSource
     requiresEnv: [],
     safetyNotes: "No network call required. Browser-side parsing only.",
     async fetchLeads() {
-      return [];
+      return {
+        status: "READY",
+        leads: [],
+        blocked: false,
+        message: "Manual CSV adapter is ingest-only.",
+      };
     },
   };
 
@@ -81,7 +96,12 @@ export function getLeadSourceAdapters(flags: ConnectorEnvFlags = {}): LeadSource
     requiresEnv: [],
     safetyNotes: "No live crawling in phase 1.",
     async fetchLeads() {
-      return [];
+      return {
+        status: "READY",
+        leads: [],
+        blocked: false,
+        message: "Domain list adapter is ingest-only.",
+      };
     },
   };
 
@@ -110,8 +130,7 @@ export function getLeadSourceAdapters(flags: ConnectorEnvFlags = {}): LeadSource
     safetyNotes:
       "Phase-4 scaffold. Blocks without env key, honors LEADGEN_SANDBOX_MODE cache bypass, and enforces kill-switch + result caps.",
     async fetchLeads(query) {
-      const result = await googlePlacesAdapter.fetchLeads(query);
-      return result.leads;
+      return googlePlacesAdapter.fetchLeads(query);
     },
   };
 
@@ -124,8 +143,7 @@ export function getLeadSourceAdapters(flags: ConnectorEnvFlags = {}): LeadSource
     safetyNotes:
       "Phase-4 scaffold. Blocks without env key, honors LEADGEN_SANDBOX_MODE cache bypass, and enforces kill-switch + result caps.",
     async fetchLeads(query) {
-      const result = await yelpApiAdapter.fetchLeads(query);
-      return result.leads;
+      return yelpApiAdapter.fetchLeads(query);
     },
   };
 
@@ -166,9 +184,15 @@ export async function discoverLeadgenOpportunities(queryText: string) {
   );
 
   const buckets = await Promise.all(discoveryAdapters.map((adapter) => adapter.fetchLeads(query)));
+  const providerWarnings: LiveAdapterProviderError[] = [];
+  for (const bucket of buckets) {
+    if (bucket.providerError) {
+      providerWarnings.push(bucket.providerError);
+    }
+  }
   const seen = new Set<string>();
   const merged: LeadOpportunity[] = [];
-  for (const lead of buckets.flat()) {
+  for (const lead of buckets.flatMap((bucket) => bucket.leads)) {
     const dedupeKey = `${lead.businessName.toLowerCase()}|${lead.city.toLowerCase()}|${lead.website?.toLowerCase() ?? ""}`;
     if (seen.has(dedupeKey)) continue;
     seen.add(dedupeKey);
@@ -178,5 +202,6 @@ export async function discoverLeadgenOpportunities(queryText: string) {
   return {
     query,
     leads: merged,
+    providerWarnings,
   };
 }

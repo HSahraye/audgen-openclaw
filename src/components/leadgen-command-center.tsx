@@ -180,6 +180,7 @@ export function LeadGenCommandCenter({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [activeLeadId, setActiveLeadId] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [providerWarning, setProviderWarning] = useState("");
   const [infoMessage, setInfoMessage] = useState(
     "AudGen Engine: Live Connector Sandbox Mode Active. Simulated discovery searches incur $0 token costs.",
   );
@@ -297,6 +298,7 @@ export function LeadGenCommandCenter({
     startImportTransition(async () => {
       try {
         setErrorMessage("");
+        setProviderWarning("");
         const text = await file.text();
         const rows = parseCsv(text);
         const imported = rows.map(toImportedOpportunity);
@@ -410,6 +412,7 @@ export function LeadGenCommandCenter({
     }
     startDiscoveryTransition(async () => {
       setErrorMessage("");
+      setProviderWarning("");
       const result = await discoverLeadgenOpportunitiesAction(discoveryQuery.trim());
       if (!result.ok) {
         setErrorMessage(result.error ?? "Discovery search failed.");
@@ -417,6 +420,9 @@ export function LeadGenCommandCenter({
       }
       setLeads((current) => mergeImportedLeads(current, result.leads));
       setSelectedIds(new Set());
+      if (result.providerWarning) {
+        setProviderWarning(result.providerWarning.message);
+      }
       setInfoMessage(`Discovered ${result.count} high-fit leads for ${result.query.category} in ${result.query.city}.`);
     });
   };
@@ -661,6 +667,11 @@ export function LeadGenCommandCenter({
                   Select visible
                 </label>
               </div>
+              {providerWarning ? (
+                <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs font-black text-amber-900">
+                  {providerWarning}
+                </div>
+              ) : null}
 
               {canRunSelectionActions ? (
                 <div className="mb-3 grid gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs font-black text-slate-700 md:grid-cols-[auto_auto_auto_auto_auto_minmax(0,1fr)_auto] md:items-center">

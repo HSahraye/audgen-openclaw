@@ -14,11 +14,18 @@ export type LiveAdapterRuntimeStatus =
   | "READY"
   | "MISSING_ENV"
   | "SANDBOX_MODE"
-  | "DISABLED_BY_KILL_SWITCH";
+  | "DISABLED_BY_KILL_SWITCH"
+  | "PROVIDER_ERROR";
+
+export type LiveAdapterProviderError = {
+  error: "PROVIDER_ERROR";
+  message: string;
+};
 
 export type LiveAdapterFetchResult = {
   status: LiveAdapterRuntimeStatus;
   leads: LeadOpportunity[];
   blocked: boolean;
   message: string;
+  providerError?: LiveAdapterProviderError;
 };

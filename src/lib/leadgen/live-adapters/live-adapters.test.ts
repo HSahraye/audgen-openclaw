@@ -79,7 +79,6 @@ describe("live connector adapters", () => {
           rating: 4.2,
           userRatingCount: 71,
           googleMapsUri: "https://maps.google.com/?cid=abc",
-          primaryTypeDisplayName: { text: "Dentists" },
         },
       ],
       { city: "San Jose", category: "Dentists" },
@@ -142,30 +141,32 @@ describe("live connector adapters", () => {
       .mockResolvedValueOnce({
         ok: true,
         status: 200,
-        json: async () => ({ places: [{ name: "places/abc123" }] }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        status: 200,
         json: async () => ({
-          id: "abc123",
-          displayName: { text: "San Jose Dental Care" },
-          formattedAddress: "100 Main St, San Jose, CA 95113",
-          nationalPhoneNumber: "+1 408-555-1212",
-          websiteUri: "https://sjdental.example",
-          rating: 4.1,
-          userRatingCount: 33,
-          googleMapsUri: "https://maps.google.com/?cid=abc123",
-          primaryTypeDisplayName: { text: "Dentists" },
+          places: [
+            {
+              id: "abc123",
+              displayName: { text: "San Jose Dental Care" },
+              formattedAddress: "100 Main St, San Jose, CA 95113",
+              nationalPhoneNumber: "+1 408-555-1212",
+              websiteUri: "https://sjdental.example",
+              rating: 4.1,
+              userRatingCount: 33,
+              googleMapsUri: "https://maps.google.com/?cid=abc123",
+            },
+          ],
         }),
       } as Response);
 
     const adapter = new GooglePlacesAdapter();
     const result = await adapter.fetchLeads({ city: "San Jose", category: "Dentists", limit: 1 });
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(result.status).toBe("READY");
     expect(result.leads).toHaveLength(1);
     expect(result.leads[0].businessName).toBe("San Jose Dental Care");
+    const [, init] = fetchMock.mock.calls[0] ?? [];
+    expect((init?.headers as Record<string, string>)["X-Goog-FieldMask"]).toBe(
+      "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.websiteUri,places.rating,places.userRatingCount,places.googleMapsUri",
+    );
   });
 
   it("maps live Yelp API fetch payloads without making real network requests", async () => {
@@ -202,5 +203,45 @@ describe("live connector adapters", () => {
     expect(result.status).toBe("READY");
     expect(result.leads).toHaveLength(1);
     expect(result.leads[0].businessName).toBe("Silicon Valley Smile Studio");
+  });
+
+  it("returns standardized provider error payload for Google quota failures", async () => {
+    process.env.GOOGLE_PLACES_API_KEY = "test-key";
+    process.env.LEADGEN_SANDBOX_MODE = "false";
+    process.env.LEADGEN_LIVE_CONNECTORS_ENABLED = "true";
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 429,
+      json: async () => ({}),
+    } as Response);
+
+    const adapter = new GooglePlacesAdapter();
+    const result = await adapter.fetchLeads({ city: "San Jose", category: "Dentists", limit: 1 });
+    expect(result.status).toBe("PROVIDER_ERROR");
+    expect(result.providerError).toEqual({
+      error: "PROVIDER_ERROR",
+      message: "Live lookup failed or quota exceeded. Falling back to sandbox simulation.",
+    });
+  });
+
+  it("returns standardized provider error payload for Yelp auth failures", async () => {
+    process.env.YELP_API_KEY = "test-key";
+    process.env.LEADGEN_SANDBOX_MODE = "false";
+    process.env.LEADGEN_LIVE_CONNECTORS_ENABLED = "true";
+
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 401,
+      json: async () => ({}),
+    } as Response);
+
+    const adapter = new YelpAPIAdapter();
+    const result = await adapter.fetchLeads({ city: "San Jose", category: "Dentists", limit: 1 });
+    expect(result.status).toBe("PROVIDER_ERROR");
+    expect(result.providerError).toEqual({
+      error: "PROVIDER_ERROR",
+      message: "Live lookup failed or quota exceeded. Falling back to sandbox simulation.",
+    });
   });
 });

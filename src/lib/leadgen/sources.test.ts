@@ -24,8 +24,8 @@ describe("leadgen source adapters", () => {
     const adapters = getLeadSourceAdapters();
     const mock = adapters.find((adapter) => adapter.id === "mock_local");
     expect(mock?.enabled).toBe(true);
-    const leads = await mock?.fetchLeads();
-    expect((leads ?? []).length).toBeGreaterThan(0);
+    const result = await mock?.fetchLeads();
+    expect((result?.leads ?? []).length).toBeGreaterThan(0);
   });
 
   it("disabled providers do not call external APIs", async () => {
@@ -34,12 +34,12 @@ describe("leadgen source adapters", () => {
     const adapters = getLeadSourceAdapters({ googlePlacesConfigured: false });
     const disabled = adapters.find((adapter) => adapter.id === "google_places");
     const fetchSpy = vi.spyOn(globalThis, "fetch");
-    const spy = vi.fn(async () => disabled?.fetchLeads() ?? []);
-    const leads = await spy();
+    const spy = vi.fn(async () => disabled?.fetchLeads());
+    const result = await spy();
     expect(spy).toHaveBeenCalledTimes(1);
     expect(disabled?.enabled).toBe(false);
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(Array.isArray(leads)).toBe(true);
+    expect(Array.isArray(result?.leads ?? [])).toBe(true);
   });
 
   it("missing env vars fail gracefully via disabled metadata", () => {

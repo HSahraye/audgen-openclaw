@@ -274,6 +274,7 @@ export async function discoverLeadgenOpportunitiesAction(query: string) {
     query: discovered.query,
     leads: discovered.leads,
     count: discovered.leads.length,
+    providerWarning: discovered.providerWarnings[0] ?? null,
   };
 }
 
