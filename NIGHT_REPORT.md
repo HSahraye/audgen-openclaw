@@ -343,6 +343,49 @@ Cycles 1-2 from shift 1 covered hygiene + baseline; cycles 3-8 are this shift's 
 - **Files:** none.
 - **Checks:** **553/553 vitest, 80 test files**, lint + tsc clean, production build clean (BUILD_ID `9g3qaL4wTg9wiSykySm3f`, 53M artifacts, all 43 routes compiled).
 - **Result:** ✅ Build #4 of 5 budget used. Branch state honest.
+- **Next candidate:** rate-limit tests.
+
+### Cycle 41 — enforceRateLimit tests
+- **Task:** Cover the rate-limit middleware helper.
+- **Why:** Used by every rate-limited API route; only `verifyHmacSignature` was tested in this file.
+- **Files:** `src/lib/request-security.rate-limit.test.ts` (new).
+- **Checks:** vitest (9/9).
+- **Result:** ✅ Identity-over-IP scoping (NAT-safe), 429 shape + retry-after, x-forwarded-for first-hop, x-real-ip fallback, anonymous bucket, window-expiry rebound.
+- **Commit:** `2c1fd4f test(security): cover enforceRateLimit identity/IP scoping + 429 shape (9 tests)`.
+- **Next candidate:** the underlying bucket primitive.
+
+### Cycle 42 — checkRateLimit (bucket) tests
+- **Task:** Direct tests for the in-memory rate-limit bucket.
+- **Why:** Fixed-window semantics weren't pinned anywhere; sliding-window refactor would slip through.
+- **Files:** `src/lib/rate-limit.test.ts` (new).
+- **Checks:** vitest (8/8).
+- **Result:** ✅ First-call pass, decrement, block at limit+1, stable resetAt within window, fresh window after expiry, key isolation, limit=1, non-negative remaining.
+- **Commit:** `05c0311 test(rate-limit): cover the in-memory bucket primitive (8 tests)`.
+- **Next candidate:** url.ts tests.
+
+### Cycle 43 — url.ts tests (+B-B05 finding)
+- **Task:** Cover the public-base-URL resolution chain.
+- **Why:** Every public-facing URL the app generates flows through this.
+- **Files:** `src/lib/url.test.ts` (new); `AUTOPILOT_BACKLOG.md` updated.
+- **Checks:** tsc clean, vitest (14/14).
+- **Result:** ✅ Priority chain pinned (NEXT_PUBLIC_APP_URL > APP_URL > VERCEL_URL > localhost), trailing-slash strip, bare-host scheme prepend, whitespace trim. **Real finding (B-B05):** whitespace-only NEXT_PUBLIC_APP_URL falls through to localhost instead of APP_URL because || is truthy on the unparsed string. Test pins current behaviour; backlog entry tracks the cleanup.
+- **Commits:** `560da6d test(url): cover getPublicBaseUrl chain ...` + `9ec2cba docs(backlog): note B-B05 — url.ts whitespace fallthrough quirk`.
+- **Next candidate:** outreach defaults tests.
+
+### Cycle 44 — outreach defaults tests
+- **Task:** Cover defaultStepName/Subject/Content.
+- **Why:** Default sequence step copy is customer-facing; placeholder fidelity matters.
+- **Files:** `src/lib/automation/outreach/defaults.test.ts` (new).
+- **Checks:** vitest (9/9).
+- **Result:** ✅ Per-channel labels, {{businessName}} only in 'call' label, email subject template, email/sms/call/task content placeholder set, call/task script identity, email soft-open convention.
+- **Commit:** `457aaec test(outreach/defaults): cover sequence-step default copy (9 tests)`.
+- **Next candidate:** baseline + report sync.
+
+### Cycle 45 — Baseline check + report sync
+- **Task:** Full `npm run check` after cycles 41-44.
+- **Files:** none (this commit is the docs sync).
+- **Checks:** **593/593 vitest, 84 test files**, lint + tsc clean.
+- **Result:** ✅ Commits ahead of develop: 71. From baseline 212/45 → +381 tests, +39 test files.
 - **Next candidate:** keep cycling.
 
 ## Approval Parking Lot
@@ -362,7 +405,7 @@ Items that need Hamid's sign-off before they can ship. Documented and skipped pe
 
 ## TL;DR
 
-**66 small commits** across three shifts. Lint clean, `tsc --noEmit` clean, **553/553 tests passing** (was 212/212 at start of shift 1 — **+341 tests, +35 test files**), production build green (#4 of 5 budget used). Shift 3 has 38 documented work cycles (3 through 40) per the full-shift rule. Branch pushed to origin after each commit.
+**71 small commits** across three shifts. Lint clean, `tsc --noEmit` clean, **593/593 tests passing** (was 212/212 at start of shift 1 — **+381 tests, +39 test files**), production build green (#4 of 5 budget used). Shift 3 has 43 documented work cycles (3 through 45) per the full-shift rule. Branch pushed to origin after each commit.
 
 Shift 1 (7 commits): hygiene + UX safety net (loading/404) + logger redaction + CI workflow + print stylesheet + CSV tests.
 
