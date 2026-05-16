@@ -5,28 +5,28 @@ Safe product/code/test/docs tasks ranked roughly by value × safety. Crestodian 
 Legend: `[ ]` pending · `[~]` in progress · `[x]` done (commit hash in NIGHT_REPORT.md)
 
 ## Tests for untested libraries (pure logic, no DB)
-- [x] B-T01 — `audit-log.ts` shape + write helpers
+- [x] B-T01 — `audit-log.ts` shape + write helpers → `6e90bff` (6 tests)
 - [ ] B-T02 — `events.ts` event tracker shape (if pure)
-- [ ] B-T03 — `templates/resolver.ts` template resolution priority
+- [~] B-T03 — `templates/resolver.ts` (existing `resolve.test.ts` covers basics; cache TTL still untested)
 - [ ] B-T04 — `templates/defaults.ts` default config integrity
 - [ ] B-T05 — `intelligence/scoring/index.ts` pure scoring
 - [ ] B-T06 — `intelligence/recommendations/index.ts` recommendations
 - [ ] B-T07 — `intelligence/normalization/findings.ts` finding normalization
-- [ ] B-T08 — `intelligence/outreach/angles.ts` outreach angle generator
+- [x] B-T08 — `intelligence/outreach/angles.ts` outreach angle generator → `47ea8d8` (10 tests)
 - [ ] B-T09 — `intelligence/narratives/generate.ts` narrative builder
 - [ ] B-T10 — `automation/reply-assistant.ts` reply suggestion logic
 - [ ] B-T11 — `automation/insights.ts` automation insights
 - [ ] B-T12 — `automation/playbooks.ts` playbook helpers
 - [ ] B-T13 — `automation/tasks.ts` task builders
-- [ ] B-T14 — `automation/timeline.ts` timeline assembly
+- [x] B-T14 — `automation/timeline.ts` timeline assembly → `89cec69` (9 tests)
 - [ ] B-T15 — `prep-links.ts` prep URL builder (if exists)
 
 ## UX safety nets
-- [x] B-U01 — `error.tsx` on `/prep/[id]` (internal sales surface, friendly fail)
-- [x] B-U02 — `error.tsx` on `/sequences/[id]` (sequence builder)
-- [x] B-U03 — `error.tsx` on `/settings/billing` (billing form fail-safe)
-- [x] B-U04 — `error.tsx` on `/automation/approvals`
-- [x] B-U05 — `error.tsx` on `/admin/health`
+- [x] B-U01 — `error.tsx` on `/prep/[id]` → `616cd6f`
+- [x] B-U02 — `error.tsx` on `/sequences/[id]` → `616cd6f`
+- [x] B-U03 — `error.tsx` on `/settings/billing` → `616cd6f`
+- [x] B-U04 — `error.tsx` on `/automation/approvals` → `616cd6f`
+- [x] B-U05 — `error.tsx` on `/admin/health` → `616cd6f`
 - [ ] B-U06 — Reusable `EmptyState` component for "no leads yet" / "no sequences" / "no templates"
 - [ ] B-U07 — Tailwind `prose` defaults for printed copy
 - [ ] B-U08 — Skip-to-main-content link in layout (a11y)
@@ -46,17 +46,17 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done (commit hash in NIGHT_R
 - [ ] B-S05 — Tests for `auth/scrub` to lock down behaviour beyond the existing mirror test
 
 ## Docs & DX
-- [x] B-D01 — `CONTRIBUTING.md` with branch policy, commit style, test rules
+- [x] B-D01 — `CONTRIBUTING.md` with branch policy, commit style, test rules → `616cd6f`
 - [ ] B-D02 — `docs/architecture.md` high-level diagram (text-based)
-- [ ] B-D03 — Update `README.md` "Commands" section with `typecheck` script
-- [ ] B-D04 — `docs/local-postgres.md` quick-start for new contributors
-- [ ] B-D05 — Add `npm run typecheck` script to `package.json` (alias `tsc --noEmit`)
-- [ ] B-D06 — Add `npm run check` script (lint + typecheck + test, no build)
+- [x] B-D03 — Update `README.md` "Commands" section with `typecheck` script → `4117dc8`
+- [x] B-D04 — `docs/local-postgres.md` quick-start → `deda8ff`
+- [x] B-D05 — Add `npm run typecheck` to `package.json` → `5b4e052`
+- [x] B-D06 — Add `npm run check` script → `5b4e052`
 
 ## Bug fixes (small, reversible)
 - [ ] B-B01 — `next.config.ts` `connect-src https: wss:` is broad; narrow to known providers
 - [ ] B-B02 — Logger default level via `LOG_LEVEL` env var
-- [ ] B-B03 — `formatRelativeTime` returns "Xd ago" forever; add "Xw ago" / "Xmo ago" for older
+- [x] B-B03 — `formatRelativeTime` weeks/months/years → `870279a`
 - [ ] B-B04 — `cn()` test for extreme inputs
 
 ## Refactors (behaviour-preserving)

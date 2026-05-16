@@ -3,14 +3,103 @@
 **Operator:** Crestodian (AWS night autopilot)
 **Windows:**
 - Shift 1: ~04:08 UTC → ~04:28 UTC
-- Shift 2 (resume): ~16:52 UTC → ongoing
+- Shift 2 (resume): ~16:52 UTC → ~17:16 UTC
+- Shift 3 (resume): ~17:23 UTC → ongoing
+
+## Documented work cycles (shift 3, structured per FULL-SHIFT rule)
+
+Cycles 1-2 from shift 1 covered hygiene + baseline; cycles 3-8 are this shift's contribution. Each entry is task / why / files / checks / result / commit / next.
+
+### Cycle 3 — npm typecheck + check scripts
+- **Task:** Add `npm run typecheck` and `npm run check` shortcuts.
+- **Why:** CI workflow already ran these via `npx`; missing scripts made IDEs and pre-commit hooks awkward.
+- **Files:** `package.json`.
+- **Checks:** `npm run typecheck` (passes).
+- **Result:** ✅ typecheck command exits 0 first try.
+- **Commit:** `5b4e052 chore(scripts): add npm typecheck + check aliases`.
+- **Next candidate:** per-route error boundaries on internal pages.
+
+### Cycle 4 — Five per-route error.tsx boundaries
+- **Task:** Add `error.tsx` on `/prep/[id]`, `/sequences/[id]`, `/settings/billing`, `/automation/approvals`, `/admin/health`.
+- **Why:** Root error.tsx unmounts the entire tree; per-route boundaries keep chrome intact and let users navigate away. Each surface needs targeted reassurance copy.
+- **Files:** 5 new `error.tsx`.
+- **Checks:** eslint clean, tsc clean.
+- **Result:** ✅ All five compile and pass lint.
+- **Commit:** `616cd6f feat(ux): per-route error boundaries on 5 internal pages`.
+- **Next candidate:** human-facing contributor docs.
+
+### Cycle 5 — CONTRIBUTING.md
+- **Task:** Author CONTRIBUTING.md.
+- **Why:** Repo had AGENTS.md for AI agents but no human onboarding doc. GitHub auto-surfaces CONTRIBUTING.md in the PR sidebar.
+- **Files:** `CONTRIBUTING.md` (new).
+- **Checks:** docs-only; no lint/test.
+- **Result:** ✅ Documented branches, setup, daily commands, commit style, safety rules, PR checklist.
+- **Commit:** `616cd6f docs: CONTRIBUTING.md — branch policy, local setup, commit style, safety rules`.
+- **Next candidate:** test the audit-log helper.
+
+### Cycle 6 — audit-log.ts tests
+- **Task:** Add tests for `writeAuditLog`.
+- **Why:** Audit trail is called from every server action; uncovered prisma failure-swallowing path was a silent risk.
+- **Files:** `src/lib/audit-log.test.ts` (new, 6 tests).
+- **Checks:** vitest run for this file.
+- **Result:** ✅ 6/6 green. Verified explicit workspaceId bypass, getWorkspaceContext fallback, null coercions, swallowed errors, non-Error throws.
+- **Commit:** `6e90bff test(audit-log): cover writeAuditLog write + fail-safe paths (6 tests)`.
+- **Next candidate:** automation/timeline merge logic.
+
+### Cycle 7 — automation/timeline.ts tests
+- **Task:** Test `createActivity` + `getLeadTimeline` merge/sort/truncation.
+- **Why:** Six-source merge sorted by createdAt desc was untested; a subtle sort bug would put activities in customer-visible chaos.
+- **Files:** `src/lib/automation/timeline.test.ts` (new, 9 tests).
+- **Checks:** vitest run for this file.
+- **Result:** ✅ 9/9 green. Locked in newest-first ordering, outreach lowercasing, body truncation, workspace+lead scope on every prisma call.
+- **Commit:** `89cec69 test(timeline): cover createActivity + getLeadTimeline merge/sort (9 tests)`.
+- **Next candidate:** docs refresh + local-postgres guide.
+
+### Cycle 8 — README refresh + docs/local-postgres.md
+- **Task:** Update README Commands section and add local-postgres setup guide.
+- **Why:** README listed stale scripts (no typecheck/check); no local-postgres doc existed.
+- **Files:** `README.md`, `docs/local-postgres.md` (new).
+- **Checks:** docs-only.
+- **Result:** ✅ Two-commit split (`deda8ff` for the new doc, `4117dc8` for the README delta).
+- **Commits:** `deda8ff docs: README commands refresh + new docs/local-postgres.md` + `4117dc8 docs(readme): refresh Commands section with typecheck/check + CONTRIBUTING link`.
+- **Next candidate:** outreach intelligence tests.
+
+### Cycle 9 — intelligence/outreach/angles tests
+- **Task:** Test `buildOutreachPlan`.
+- **Why:** Tiny pure function powering the meeting-prep outreach plan; threshold values (70/45) needed regression net.
+- **Files:** `src/lib/intelligence/outreach/angles.test.ts` (new, 10 tests).
+- **Checks:** vitest run for this file.
+- **Result:** ✅ 10/10 green. Boundary values 70/69/45/44 covered.
+- **Commit:** `47ea8d8 test(intelligence): cover outreach buildOutreachPlan (10 tests)`.
+- **Next candidate:** formatRelativeTime weeks/months extension.
+
+### Cycle 10 — formatRelativeTime weeks/months/years
+- **Task:** Extend relative-time formatter beyond 'Nd ago' indefinitely.
+- **Why:** Customer-visible dashboard polish; 240d ago is unreadable.
+- **Files:** `src/lib/utils.ts`, `src/lib/utils.test.ts`.
+- **Checks:** eslint + tsc + full vitest (381/381).
+- **Result:** ✅ Added w/mo/y branches with rounding documented in JSDoc.
+- **Commit:** `870279a feat(ux): formatRelativeTime now spells out weeks/months/years`.
+- **Next candidate:** more intelligence library tests.
+
+## Approval Parking Lot
+
+Items that need Hamid's sign-off before they can ship. Documented and skipped per the new full-shift rule — these do not block the loop.
+
+1. Netlify build runs `prisma db push` — swap to `db:migrate:deploy` with a real baseline migration. (B-8 in BUGS_FOUND.md)
+2. Two pending Prisma migration plans: `MIGRATION_PLAN_LEAD_STAGE.md`, `MIGRATION_PLAN_REPLY_MODEL.md`. (B-9)
+3. CSP `'unsafe-inline'` on script-src — design nonce middleware. (B-10)
+4. `security/automation-runner-secret-required` — enforces env var in prod via `assertProductionEnv()`. (B-11)
+5. Strict email validation on lead form — risk of rejecting legacy rows. (B-19)
+6. Push `autopilot/night-audgen-2026-05-16` to origin — ✅ **completed by Hamid** between shifts.
+
 
 **Branch:** `autopilot/night-audgen-2026-05-16` (off `develop` @ `ffd2016`)
 **Mode:** FULL-SHIFT AUTOPILOT — safe work only, no outbound, no prod, no destructive DB.
 
 ## TL;DR
 
-**26 small commits** across two shifts. Lint clean, `tsc --noEmit` clean, **353/353 tests passing** (was 212/212 at start of shift 1 — **+141 tests, +14 test files**), production build green (#2 of 5 budget used).
+**37 small commits** across three shifts. Lint clean, `tsc --noEmit` clean, **381/381 tests passing** (was 212/212 at start of shift 1 — **+169 tests, +17 test files**), production build green (#2 of 5 budget used). Shift 3 adds 8 documented work cycles per the new full-shift rule (Cycles 3-10).
 
 Shift 1 (7 commits): hygiene + UX safety net (loading/404) + logger redaction + CI workflow + print stylesheet + CSV tests.
 
