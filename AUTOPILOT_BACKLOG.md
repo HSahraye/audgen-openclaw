@@ -59,6 +59,7 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done (commit hash in NIGHT_R
 - [x] B-B03 — `formatRelativeTime` weeks/months/years → `870279a`
 - [ ] B-B04 — `cn()` test for extreme inputs (low priority — underlying libs are well-tested)
 - [ ] B-B05 — `getPublicBaseUrl` whitespace-only `NEXT_PUBLIC_APP_URL` falls through to localhost instead of `APP_URL`. Tiny: change to `??` or trim before `||`. Pinned in `src/lib/url.test.ts`. Safe to fix in a follow-up PR after deciding whether anyone is intentionally relying on the current behaviour.
+- [ ] B-B06 — `generateFollowupRecommendation` branch order: `highEngagementCooling` fires before the `paymentClickCount > 0` branch, so a lead who clicked pay-now after a quiet stretch (momentum still in 'cooling' band) gets an SMS recommendation instead of an immediate call. Pinned in `brain.extra.test.ts`. Decide if SMS-first is intentional for cooling+payment leads or if payment intent should override cooling.
 
 ## Refactors (behaviour-preserving)
 - [ ] B-R01 — Extract `localAssets` from `audit-engine.ts` (still inline, 100+ lines)
