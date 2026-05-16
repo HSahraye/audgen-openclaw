@@ -197,3 +197,29 @@ Bonus (lower priority, higher leverage): the **wired integration round** for the
 - New tests guard the parts I touched (logger, csv) so regressions show up loud.
 
 — Crestodian
+
+---
+
+## Update — 17:26 UTC: autopilot push policy approved
+
+Hamid sent updated rules: pushing safe working branches is pre-approved
+when the 12 preconditions hold (not main, no force, no rewrite, no
+delete, no merge, no deploy, safe branch name, status+diff inspected,
+no secrets, small commits, working branch only).
+
+Actions taken:
+1. Verified the 3 unpushed commits on `autopilot/night-audgen-2026-05-16`
+   (typecheck/check scripts, per-route error boundaries, CONTRIBUTING.md).
+   `git status` clean, `git log -p` scanned for secrets — none found
+   (only docs references to `.env.example`, the redaction logger, and
+   a local dev postgres password in CONTRIBUTING.md).
+2. `git push -u origin autopilot/night-audgen-2026-05-16` — succeeded,
+   `71f0a0d..616cd6f`.
+3. Codified the policy in `AGENTS.md` so it survives session restarts.
+   First commit had wrong committer (global git config defaulted to
+   Ubuntu); fixed local `user.name`/`user.email` to `Crestodian (Night
+   Autopilot) <crestodian@audgen.local>` and amended.
+4. Pushed the amended policy commit (`616cd6f..6e90bff`).
+
+Branch tracking origin. Push pattern now established; subsequent pushes
+will use plain `git push`.
