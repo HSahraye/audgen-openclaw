@@ -10,6 +10,8 @@ type ConnectorEnvFlags = {
   yelpConfigured?: boolean;
 };
 
+const DISCOVERY_SOURCES: LeadSourceType[] = ["google_places", "yelp_fusion"];
+
 export type LeadSourceAdapter = {
   id: LeadSourceType;
   label: string;
@@ -144,4 +146,37 @@ export function getLeadSourceAdapters(flags: ConnectorEnvFlags = {}): LeadSource
     yelpFusion,
     futureConnector,
   ];
+}
+
+export function parseDiscoveryQuery(input: string): LiveAdapterQuery {
+  const textQuery = input.trim().replace(/\s+/g, " ");
+  if (!textQuery) return { city: "San Jose", category: "Local Services", textQuery: "" };
+  const inMatch = textQuery.match(/^(.+?)\s+in\s+(.+)$/i);
+  const category = inMatch?.[1]?.trim() || "Local Services";
+  const city = inMatch?.[2]?.trim() || "San Jose";
+  return { city, category, textQuery };
+}
+
+export async function discoverLeadgenOpportunities(queryText: string) {
+  const adapters = getLeadSourceAdapters();
+  const query = parseDiscoveryQuery(queryText);
+  const discoveryAdapters = adapters.filter(
+    (adapter) =>
+      DISCOVERY_SOURCES.includes(adapter.id) && adapter.fetchLeads,
+  );
+
+  const buckets = await Promise.all(discoveryAdapters.map((adapter) => adapter.fetchLeads(query)));
+  const seen = new Set<string>();
+  const merged: LeadOpportunity[] = [];
+  for (const lead of buckets.flat()) {
+    const dedupeKey = `${lead.businessName.toLowerCase()}|${lead.city.toLowerCase()}|${lead.website?.toLowerCase() ?? ""}`;
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+    merged.push(lead);
+  }
+
+  return {
+    query,
+    leads: merged,
+  };
 }

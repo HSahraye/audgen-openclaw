@@ -19,6 +19,7 @@ import {
   deleteLeadgenSavedView,
   saveLeadgenOpportunities,
 } from "@/lib/leadgen/persistence";
+import { discoverLeadgenOpportunities } from "@/lib/leadgen/sources";
 import type { LeadOpportunity, LeadOpportunityFilters, LeadOpportunityWorkflowStatus } from "@/lib/leadgen/types";
 import { prisma } from "@/lib/prisma";
 import { getWorkspaceContext, strictWorkspaceScope } from "@/lib/workspace";
@@ -32,6 +33,10 @@ const bulkStatusSchema = z.object({
   opportunityIds: z.array(z.string().min(1)).min(1),
   nextStatus: z.custom<LeadOpportunityWorkflowStatus>(),
   note: z.string().max(600).optional(),
+});
+
+const discoveryQuerySchema = z.object({
+  query: z.string().trim().min(3).max(160),
 });
 
 const LEADGEN_AUDIT_DISPATCH_SOURCE = "leadgen:audit_dispatch";
@@ -257,6 +262,19 @@ export async function markLeadgenExportedAction(opportunityIds: string[]) {
   }
   revalidatePath("/leadgen");
   return { ok: true, updated };
+}
+
+export async function discoverLeadgenOpportunitiesAction(query: string) {
+  await requireRole(["admin", "sales", "viewer"]);
+  const parsed = discoveryQuerySchema.safeParse({ query });
+  if (!parsed.success) return { ok: false as const, error: "Add a city and category to run discovery." };
+  const discovered = await discoverLeadgenOpportunities(parsed.data.query);
+  return {
+    ok: true as const,
+    query: discovered.query,
+    leads: discovered.leads,
+    count: discovered.leads.length,
+  };
 }
 
 export async function getLeadgenAuditPreflightAction(opportunityIds: string[]) {

@@ -19,6 +19,7 @@ import {
   addSelectedLeadgenToAudgenAction,
   bulkUpdateLeadgenStatusAction,
   deleteLeadgenViewAction,
+  discoverLeadgenOpportunitiesAction,
   getLeadgenAuditPreflightAction,
   markLeadgenExportedAction,
   persistLeadgenOpportunitiesAction,
@@ -180,8 +181,9 @@ export function LeadGenCommandCenter({
   const [activeLeadId, setActiveLeadId] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [infoMessage, setInfoMessage] = useState(
-    "LeadGen phase 2 is running in safe/local mode. External connectors remain approval-gated.",
+    "AudGen Engine: Live Connector Sandbox Mode Active. Simulated discovery searches incur $0 token costs.",
   );
+  const [discoveryQuery, setDiscoveryQuery] = useState("");
   const [viewName, setViewName] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
   const [bulkNoteDraft, setBulkNoteDraft] = useState("");
@@ -193,6 +195,7 @@ export function LeadGenCommandCenter({
   const [isBulkUpdating, startBulkUpdateTransition] = useTransition();
   const [isSavingView, startSaveViewTransition] = useTransition();
   const [isPreflighting, startPreflightTransition] = useTransition();
+  const [isDiscovering, startDiscoveryTransition] = useTransition();
 
   const filteredLeads = useMemo(() => applyLeadOpportunityFilters(leads, filters), [filters, leads]);
   const selectedLeads = useMemo(() => filteredLeads.filter((lead) => selectedIds.has(lead.id)), [filteredLeads, selectedIds]);
@@ -400,6 +403,24 @@ export function LeadGenCommandCenter({
     });
   };
 
+  const discoverHighFitLeads = () => {
+    if (!discoveryQuery.trim()) {
+      setErrorMessage("Enter a discovery query like 'Dentists in San Jose'.");
+      return;
+    }
+    startDiscoveryTransition(async () => {
+      setErrorMessage("");
+      const result = await discoverLeadgenOpportunitiesAction(discoveryQuery.trim());
+      if (!result.ok) {
+        setErrorMessage(result.error ?? "Discovery search failed.");
+        return;
+      }
+      setLeads((current) => mergeImportedLeads(current, result.leads));
+      setSelectedIds(new Set());
+      setInfoMessage(`Discovered ${result.count} high-fit leads for ${result.query.category} in ${result.query.city}.`);
+    });
+  };
+
   const queueAuditGeneration = () => {
     if (!selectedLeads.length) return;
     startPreflightTransition(async () => {
@@ -593,6 +614,43 @@ export function LeadGenCommandCenter({
             </div>
 
             <div className="rounded-[2rem] border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="mb-4 rounded-2xl border border-lime-200 bg-lime-50/40 p-3">
+                <div className="flex flex-wrap items-center gap-2 md:grid md:grid-cols-[minmax(0,1fr)_auto]">
+                  <div className="min-w-0">
+                    <label htmlFor="live-discovery-query" className="sr-only">
+                      Live lead discovery query
+                    </label>
+                    <input
+                      id="live-discovery-query"
+                      name="discoveryQuery"
+                      value={discoveryQuery}
+                      onChange={(event) => setDiscoveryQuery(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") {
+                          event.preventDefault();
+                          discoverHighFitLeads();
+                        }
+                      }}
+                      placeholder="e.g., Dentists in San Jose, Roofers in Miami..."
+                      className="h-11 w-full rounded-2xl border border-lime-200 bg-white px-4 text-sm font-semibold outline-none focus:border-lime-400"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={discoverHighFitLeads}
+                    disabled={isDiscovering}
+                    className="inline-flex h-11 items-center justify-center rounded-2xl bg-lime-300 px-4 text-xs font-black text-slate-950 transition hover:bg-lime-200 disabled:opacity-60"
+                  >
+                    {isDiscovering ? "Discovering..." : "Discover High-Fit Leads"}
+                  </button>
+                </div>
+                {isDiscovering ? (
+                  <div className="mt-3 flex items-center gap-2 text-xs font-black text-slate-600">
+                    <span className="size-3 animate-spin rounded-full border-2 border-lime-400 border-t-transparent" />
+                    Running discovery job and loading simulated connector results...
+                  </div>
+                ) : null}
+              </div>
               <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h2 className="font-black">Discovered Leads</h2>
@@ -616,7 +674,13 @@ export function LeadGenCommandCenter({
                 </div>
               ) : null}
 
-              {noLeadsAtAll ? (
+              {isDiscovering ? (
+                <div className="grid gap-2">
+                  {Array.from({ length: 6 }).map((_, idx) => (
+                    <div key={`leadgen-skeleton-${idx}`} className="h-16 animate-pulse rounded-xl border border-slate-200 bg-slate-100/70" />
+                  ))}
+                </div>
+              ) : noLeadsAtAll ? (
                 <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
                   <p className="font-black">No LeadGen opportunities saved yet.</p>
                   <p className="mt-2 text-sm text-slate-500">Import a CSV or load sample leads to start qualifying opportunities.</p>
