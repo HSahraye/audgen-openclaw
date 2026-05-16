@@ -822,6 +822,7 @@ export function AuditDashboard({
                 <div className="mt-5 flex flex-wrap items-center gap-2">
                   <Link href="/call-today" className="rounded-2xl bg-[#10B981] px-4 py-2.5 text-sm font-black text-slate-950 transition hover:bg-emerald-400">📞 Call Today</Link>
                   <Link href="/brief" className="rounded-2xl bg-[#0F172A] px-4 py-2.5 text-sm font-black text-white transition hover:bg-slate-800">📅 Daily Brief</Link>
+                  <Link href="/leadgen" className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50">LeadGen Command Center</Link>
                   <Link href="/outreach" className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50">Start Outreach</Link>
                   <Link href="/research" className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50">Lead Research Queue</Link>
                   <Link href="/sequences" className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50">Sequences</Link>

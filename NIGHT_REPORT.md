@@ -152,3 +152,17 @@ Bonus (lower priority, higher leverage): the **wired integration round** for the
 - New tests guard the parts I touched (logger, csv) so regressions show up loud.
 
 — Crestodian
+
+---
+
+## Day Operator Addendum — LeadGen Command Center
+
+Implemented a new phase-1 `LeadGen Command Center` module on feature branch `feat/leadgen-command-center`.
+
+- Added route: `/leadgen`
+- Added reusable `src/lib/leadgen/*` architecture (types, scoring, filters, exports, mock-data, sources)
+- Added safe integration action to move selected opportunities into AudGen queue (`ResearchQueueItem`) without destructive DB changes
+- Added tests for scoring, filtering, export, source adapters, and UI state derivation
+- Added env placeholders for future Google Sheets connector scaffolding (disabled by default)
+
+No live external connectors were activated. No production or outbound operations were performed.
