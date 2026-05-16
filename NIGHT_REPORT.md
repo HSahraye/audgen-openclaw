@@ -383,9 +383,26 @@ Cycles 1-2 from shift 1 covered hygiene + baseline; cycles 3-8 are this shift's 
 
 ### Cycle 45 — Baseline check + report sync
 - **Task:** Full `npm run check` after cycles 41-44.
-- **Files:** none (this commit is the docs sync).
-- **Checks:** **593/593 vitest, 84 test files**, lint + tsc clean.
-- **Result:** ✅ Commits ahead of develop: 71. From baseline 212/45 → +381 tests, +39 test files.
+- **Files:** none.
+- **Checks:** 593/593 vitest, 84 test files, lint + tsc clean.
+- **Result:** ✅ Commits ahead of develop: 71.
+- **Commit:** `bb45c3b docs: record cycles 41-45 (593/593, 71 commits ahead)`.
+- **Next candidate:** followup brain extended coverage.
+
+### Cycle 46 — followup/brain extended tests (+ finding B-B06)
+- **Task:** Branch coverage on `generateFollowupRecommendation`.
+- **Why:** 2 baseline tests; branches like paymentClickCount, reopened-after-gap, urgency clamp, default path, fallback copies were untested.
+- **Files:** `src/lib/intelligence/followup/brain.extra.test.ts` (new); `AUTOPILOT_BACKLOG.md` updated.
+- **Checks:** vitest (9/9 — 1 failure that surfaced **finding B-B06**, then fixed by adjusting the test fixture to match branch order).
+- **Result:** ✅ Every documented branch covered. New finding logged: `highEngagementCooling` greedy-fires before `paymentClickCount > 0`, so a cooling-band lead who clicks pay-now gets SMS instead of an immediate call. Backlog entry tracks the product-design decision.
+- **Commit:** `02d1034 test(followup/brain): extended branch coverage (+9 tests, finding B-B06)`.
+- **Next candidate:** report sync.
+
+### Cycle 47 — Final baseline sync
+- **Task:** `npm test` baseline + record cycles 46-47.
+- **Files:** `NIGHT_REPORT.md`.
+- **Checks:** **602/602 vitest, 85 test files**.
+- **Result:** ✅ Commits ahead of develop: 73. From baseline 212/45 → +390 tests, +40 test files.
 - **Next candidate:** keep cycling.
 
 ## Approval Parking Lot
@@ -405,7 +422,7 @@ Items that need Hamid's sign-off before they can ship. Documented and skipped pe
 
 ## TL;DR
 
-**71 small commits** across three shifts. Lint clean, `tsc --noEmit` clean, **593/593 tests passing** (was 212/212 at start of shift 1 — **+381 tests, +39 test files**), production build green (#4 of 5 budget used). Shift 3 has 43 documented work cycles (3 through 45) per the full-shift rule. Branch pushed to origin after each commit.
+**73 small commits** across three shifts. Lint clean, `tsc --noEmit` clean, **602/602 tests passing** (was 212/212 at start of shift 1 — **+390 tests, +40 test files**), production build green (#4 of 5 budget used). Shift 3 has 45 documented work cycles (3 through 47) per the full-shift rule. Branch pushed to origin after each commit.
 
 Shift 1 (7 commits): hygiene + UX safety net (loading/404) + logger redaction + CI workflow + print stylesheet + CSV tests.
 
