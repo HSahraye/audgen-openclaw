@@ -33,3 +33,75 @@ input,
 textarea {
   -webkit-tap-highlight-color: transparent;
 }
+
+/* ---------------------------------------------------------------------
+   Print styles.
+   The audit page (/audit/[id]) is the primary share-and-print surface.
+   It uses dark sections (bg-slate-950) for visual punch on screen but that
+   prints as solid black ink or, more often, drops backgrounds entirely on
+   default browser print settings — making it unreadable. These rules:
+     - force a clean white background everywhere on print,
+     - keep text dark so it actually renders,
+     - hide chrome (Print buttons, tracker pixels, share affordances),
+     - tighten margins and prevent ugly mid-card page breaks,
+     - make backgrounds reproduce when the user opts in to "background
+       graphics" in the print dialog.
+   Add `class="print:hidden"` to any new screen-only element. Add
+   `class="break-inside-avoid"` to keep a card on one page.
+   --------------------------------------------------------------------- */
+@media print {
+  :root {
+    --background: #ffffff;
+    --foreground: #0f172a;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  @page {
+    margin: 14mm;
+  }
+
+  /* Avoid splitting headings or cards across pages. */
+  h1,
+  h2,
+  h3 {
+    page-break-after: avoid;
+    break-after: avoid-page;
+  }
+
+  section,
+  article,
+  .print-card,
+  [data-print-card] {
+    page-break-inside: avoid;
+    break-inside: avoid-page;
+  }
+
+  /* URLs in printed copies are nicer to read in full. */
+  a[href]:not([data-print-no-url])::after {
+    content: " (" attr(href) ")";
+    font-size: 0.85em;
+    color: #475569;
+  }
+
+  /* Don't append URLs for internal anchors / javascript handlers. */
+  a[href^="#"]::after,
+  a[href^="javascript:"]::after {
+    content: "";
+  }
+
+  /* Hide pure-UI elements explicitly marked as screen-only. Existing
+     Tailwind `print:hidden` utilities continue to work because they
+     compile to `@media print { display: none; }` already. */
+  .no-print,
+  [data-no-print] {
+    display: none !important;
+  }
+}
+
