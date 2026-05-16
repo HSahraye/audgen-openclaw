@@ -72,6 +72,43 @@ Findings from inspection of `develop` @ `ffd2016`. Severity is impact × likelih
 - `automation-runner-secret-required` ← smallest, recommended as next ship.
 - **Status:** Not touched. Each touches live integrations and needs your sign-off.
 
+## Shift 2 additions
+
+### B-12 — No `loading.tsx` on the long tail of routes
+- **Where:** /admin, /admin/health, /admin/insights/scoring, /settings/billing, /templates, /automation/approvals, /sequences/[id], /audit/[id], /a/[slug], /login, /accept-invite.
+- **Status:** ✅ Fixed in `e616dab`. Every route now has loading.tsx.
+
+### B-13 — No `error.tsx` on customer-facing public routes
+- **Where:** /audit/[id], /a/[slug].
+- **Risk:** Prospects hitting an error see the internal "the team has been notified" copy from the root error.tsx — wrong tone, wrong audience.
+- **Status:** ✅ Fixed in `eee8bcd`. Friendly copy + try-again CTA. Both still log via the redacting logger.
+
+### B-14 — No robots.txt or sitemap.xml
+- **Risk:** Customer audit URLs could be indexed by misbehaving crawlers (leaks business names from the URL itself).
+- **Status:** ✅ Fixed in `6f8b25c`. robots.ts disallows every internal + share path; sitemap.ts exposes only / and /about.
+
+### B-15 — No Open Graph / Twitter metadata
+- **Where:** layout.tsx + audit/[id]/page.tsx.
+- **Risk:** Shared audit links in Slack/iMessage/Twitter unfurl with a blank preview — looks unprofessional on the exact surface where the prospect first sees the brand.
+- **Status:** ✅ Fixed in `6b18dda`. Per-audit dynamic title + description with token-protected fallback (no business-name leak to crawlers without the signed token).
+
+### B-16 — audit-engine.ts inline scoring helpers had no direct tests
+- **Risk:** scoreLead / packageName / estimateAnnualLoss are deterministic business-critical math but untestable without mocking the entire generation pipeline.
+- **Status:** ✅ Fixed in `71afad2`. Extracted to audit-scoring.ts behavior-preserving; 20 new direct tests cover every weight, every threshold, every vertical tier.
+
+### B-17 — audit-links.ts security paths untested
+- **Risk:** HMAC verification + expiration + payload-swap defenses had no regression net.
+- **Status:** ✅ Fixed in `764b2ef`. 8 adversarial tests prove the gate holds.
+
+### B-18 — Multiple business-critical utilities had zero tests
+- **Where:** money.ts, audit-slugs.ts, branding.ts, public-url.ts, objections.ts, utils.ts (cn + formatRelativeTime), communication/links.ts.
+- **Status:** ✅ All have dedicated test files now (62 new tests this shift).
+
+### B-19 — Lead actions accept unvalidated email format
+- **Where:** `src/app/actions/leads.ts` formSchema uses `z.string().optional()` for email — no email-format check. Same on CSV import path.
+- **Risk:** Malformed emails go in, outreach drafts later try to send to garbage and fail silently or noisily.
+- **Status:** 🟡 **Not touched** — changing form validation can break existing leads with junky email values already in the DB. Needs Hamid's call on whether to (a) reject at intake, (b) coerce to null when invalid, or (c) keep current permissive behavior. Documented for triage.
+
 ## ✅ Things I checked and found genuinely fine
 
 - TypeScript strict mode is on, zero `as any` in `src/`, only one TODO in the entire codebase.

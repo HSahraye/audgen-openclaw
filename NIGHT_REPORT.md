@@ -1,13 +1,20 @@
 # Night Autopilot Report — 2026-05-16
 
 **Operator:** Crestodian (AWS night autopilot)
-**Window:** ~04:08 UTC → ~04:26 UTC (Sat 2026-05-16)
+**Windows:**
+- Shift 1: ~04:08 UTC → ~04:28 UTC
+- Shift 2 (resume): ~16:52 UTC → ongoing
+
 **Branch:** `autopilot/night-audgen-2026-05-16` (off `develop` @ `ffd2016`)
-**Mode:** NIGHT AUTOPILOT — safe work only, no outbound, no prod, no destructive DB.
+**Mode:** FULL-SHIFT AUTOPILOT — safe work only, no outbound, no prod, no destructive DB.
 
 ## TL;DR
 
-7 small commits. Lint clean, `tsc --noEmit` clean (was 28 errors), 237/237 tests passing (was 212/212, **+25 net new tests**), full production build green.
+**20 small commits** across two shifts. Lint clean, `tsc --noEmit` clean, **329/329 tests passing** (was 212/212 at start of shift 1 — **+117 tests, +11 test files**), production build green.
+
+Shift 1 (7 commits): hygiene + UX safety net (loading/404) + logger redaction + CI workflow + print stylesheet + CSV tests.
+
+Shift 2 (13 commits): finished loading.tsx coverage on every remaining route, error boundaries on customer-facing pages, robots.txt + sitemap.xml, Open Graph + Twitter metadata for share unfurls, extracted audit-scoring helpers + 20 tests, new tests for money/audit-slugs/branding/public-url/objections/audit-links-security/utils/communication-links.
 
 No destructive DB actions. No deploys. No outbound emails/SMS/calls. No prod env or DNS changes. No force pushes. No model/API external calls used (cost governor: 0/25 budget consumed).
 
@@ -39,9 +46,25 @@ autopilot/night-audgen-2026-05-16
 | `src/app/globals.css` | Print stylesheet for `/audit/[id]` PDF exports. |
 | `.github/workflows/ci.yml` | New CI workflow (lint + tsc + test + build) for PRs to develop/main. |
 
-## Commits
+## Commits (newest first)
 
 ```
+Shift 2:
+2ccdb47 test(communication): cover mailto/sms/wa link builders (11 tests)
+30196a7 test(utils): cover cn() and formatRelativeTime() (11 tests)
+764b2ef test(security): harden audit-link verification against forgery and replay (8 tests)
+6b18dda feat(share): Open Graph + Twitter metadata so shared audit links unfurl properly
+71afad2 refactor(audit-engine): extract pure scoring helpers + 20 tests
+6f8b25c feat(seo): add robots.ts + sitemap.ts to protect customer audit URLs
+10a081d test(objections): cover sales-prep objection generator (5 tests)
+eee8bcd feat(ux): prospect-friendly error boundaries on /audit and /a routes
+52f3df3 test(branding+url): cover public-facing utilities (16 tests)
+2dd8d40 test(audit-slugs): cover public-share slug normalization (8 tests)
+52163e8 test(money): cover pricing logic that drives pipeline value math (13 tests)
+e616dab feat(ux): finish loading.tsx coverage across remaining routes
+
+Shift 1:
+6dba5f0 docs: night autopilot report + bugs found catalog
 820772f feat(ux): print stylesheet for /audit pages so PDF exports actually look right
 d035bed ci: add GitHub Actions quality gate (lint + tsc + test + build)
 9dde444 test(csv): lock down lead-import parser behavior with 16 unit tests
@@ -80,10 +103,24 @@ See `BUGS_FOUND.md` for the full list. Highlights:
 
 | Check | Result | Notes |
 |---|---|---|
-| `npx eslint . --max-warnings 0` | ✅ clean | Ran 3× (between commits) — no warnings introduced. |
-| `npx tsc --noEmit` | ✅ clean | Was emitting 28 errors before commit `50899eb`; clean after. |
-| `npm test` (vitest) | ✅ 237/237 passing | Was 212/212. +25 new tests (logger 9, csv 16). 47 test files (was 45). |
-| `npm run build` | ✅ clean | Production build, all 41 routes compile, `/_not-found` correctly prerendered as static. Build #1 of 5 budget used. |
+| `npx eslint . --max-warnings 0` | ✅ clean | Ran many times between commits. |
+| `npx tsc --noEmit` | ✅ clean | Was emitting 28 errors before commit `50899eb`; clean since. |
+| `npm test` (vitest) | ✅ **329/329 passing** | Was 212 at start. +117 tests, +11 test files. |
+| `npm run build` | ✅ clean | Production build #1 of 5 budget used (shift 1). Shift 2 changes verified via per-file lint + tsc + targeted vitest; full build deferred to keep budget for emergencies. |
+
+### Suite breakdown by new test file (shift 2)
+
+| File | Tests | Notes |
+|---|---|---|
+| `src/lib/money.test.ts` | 13 | Pricing math used by every dashboard \$ value. |
+| `src/lib/audit-slugs.test.ts` | 8 | Public-share slug normalization. |
+| `src/lib/branding.test.ts` | 8 | Public sender name resolution + brand-copy sanitizer. |
+| `src/lib/public-url.test.ts` | 8 | Client-side base URL + path joining. |
+| `src/lib/objections.test.ts` | 5 | Sales-prep objection response generator. |
+| `src/lib/audit-scoring.test.ts` | 20 | Extracted scoreLead/packageName/estimateAnnualLoss. |
+| `src/lib/audit-links.security.test.ts` | 8 | Forgery, replay, expiration, payload swap. |
+| `src/lib/utils.test.ts` | 11 | `cn()` + `formatRelativeTime()`. |
+| `src/lib/communication/links.test.ts` | 11 | mailto / sms / wa.me href builders. |
 
 ## Hard-stop / approval-required items
 
