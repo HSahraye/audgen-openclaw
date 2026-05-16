@@ -8,6 +8,7 @@ import { ArrowUpRight, BarChart3, CheckCircle2, Copy, ExternalLink, Filter, Load
 import { createCaseStudyAction } from "@/app/actions/case-studies";
 import { startLeadSequenceAction } from "@/app/actions/automation";
 import { createLeadAction, deleteLeadAction, importLeadsCsvAction, logOutreachAction, regenerateLeadAction, updateLeadNotesAction, updateLeadOfferAction, updateLeadShortSlugAction, updateLeadStatusAction } from "@/app/actions/leads";
+import { BRANDING_CONFIG } from "@/config/branding";
 import { AuditGenBrandLockup } from "@/components/brand/auditgen-brand-lockup";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { sanitizePublicBrandCopy } from "@/lib/branding";
@@ -661,7 +662,7 @@ export function AuditDashboard({
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `auditgen-leads-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `${BRANDING_CONFIG.appName.toLowerCase()}-leads-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -829,7 +830,7 @@ export function AuditDashboard({
                   <Link href="/automation/approvals" className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-50">Approvals</Link>
                 </div>
                 <div className="mt-5 rounded-2xl border border-slate-200/80 bg-white/80 p-3 shadow-sm backdrop-blur-sm">
-                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">How AuditGen works</p>
+                  <p className="text-[11px] font-black uppercase tracking-[0.14em] text-slate-500">How {BRANDING_CONFIG.appName} works</p>
                   <div className="mt-3 flex flex-wrap items-center gap-1.5 sm:gap-2">
                     <span className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-3 text-xs font-black text-slate-700">Import Leads</span>
                     <span className="inline-flex size-6 items-center justify-center rounded-full border border-slate-200 bg-slate-50 text-[11px] font-black text-slate-500">→</span>

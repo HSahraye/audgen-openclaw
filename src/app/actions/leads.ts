@@ -10,7 +10,8 @@ import {
   ensureWorkspaceOperational,
 } from "@/lib/billing/entitlements";
 import { incrementUsageMetric, setUsageMetric } from "@/lib/billing/usage";
-import { parseCsv, pick } from "@/lib/csv";
+import { parseCsv } from "@/lib/csv";
+import { pickLeadgenCsvField } from "@/lib/leadgen/csv-header-aliases";
 import { processImportJobChunk } from "@/lib/import-jobs";
 import { trackProductAnalytics } from "@/lib/analytics/product";
 import { markOnboardingMilestone } from "@/lib/onboarding";
@@ -478,15 +479,15 @@ export async function importLeadsCsvAction(_prevState: unknown, formData: FormDa
   const errors: string[] = [];
 
   for (const [index, row] of rows.entries()) {
-    const businessName = pick(row, ["business name", "name", "business", "company"]);
-    const websiteUrl = pick(row, ["website", "website url", "url", "site"]);
+    const businessName = pickLeadgenCsvField(row, "businessName");
+    const websiteUrl = pickLeadgenCsvField(row, "website");
     const websiteKey = normalizeWebsiteKey(websiteUrl);
-    const location = pick(row, ["city", "location", "area"]);
-    const ownerName = pick(row, ["owner", "owner name", "contact", "contact name"]);
-    const category = pick(row, ["industry/category", "industry", "category", "type"]);
-    const phone = pick(row, ["phone", "phone number", "mobile"]);
-    const email = pick(row, ["email", "email address"]);
-    const notes = pick(row, ["notes", "note", "description"]);
+    const location = pickLeadgenCsvField(row, "location");
+    const ownerName = pickLeadgenCsvField(row, "ownerName");
+    const category = pickLeadgenCsvField(row, "category");
+    const phone = pickLeadgenCsvField(row, "phone");
+    const email = pickLeadgenCsvField(row, "email");
+    const notes = pickLeadgenCsvField(row, "notes");
 
     if (!businessName && !websiteUrl) {
       failed += 1;

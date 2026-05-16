@@ -58,10 +58,14 @@ export function toCsv(rows: CsvRow[], headers: string[]) {
 }
 
 export function normalizeHeader(header: string) {
-  return header.trim().toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const withoutTrailingSymbols = header
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]+$/g, "");
+  return withoutTrailingSymbols.replace(/[^a-z0-9]+/g, " ").trim();
 }
 
-export function pick(row: CsvRow, aliases: string[]) {
+export function pick(row: CsvRow, aliases: readonly string[]) {
   for (const alias of aliases) {
     const value = row[normalizeHeader(alias)];
     if (value?.trim()) return value.trim();

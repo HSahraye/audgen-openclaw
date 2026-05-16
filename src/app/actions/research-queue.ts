@@ -5,7 +5,8 @@ import { z } from "zod";
 import { generateAudit } from "@/lib/audit-engine";
 import { enforceAuditGeneration, ensureWorkspaceOperational } from "@/lib/billing/entitlements";
 import { incrementUsageMetric } from "@/lib/billing/usage";
-import { parseCsv, pick } from "@/lib/csv";
+import { parseCsv } from "@/lib/csv";
+import { pickLeadgenCsvField } from "@/lib/leadgen/csv-header-aliases";
 import { trackProductAnalytics } from "@/lib/analytics/product";
 import { markOnboardingMilestone } from "@/lib/onboarding";
 import { prisma } from "@/lib/prisma";
@@ -68,13 +69,13 @@ export async function addResearchQueueItemsAction(_prevState: unknown, formData:
   const looksLikeCsv = rawText.split(/\r?\n/)[0]?.includes(",");
   const rows = looksLikeCsv
     ? parseCsv(rawText).map((row) => ({
-        businessName: pick(row, ["business name", "name", "business", "company"]),
-        websiteUrl: pick(row, ["website", "website url", "url", "site"]),
-        location: pick(row, ["city", "location", "area"]),
-        category: pick(row, ["industry/category", "industry", "category", "type"]),
-        phone: pick(row, ["phone", "phone number", "mobile"]),
-        email: pick(row, ["email", "email address"]),
-        notes: pick(row, ["notes", "note", "description"]),
+        businessName: pickLeadgenCsvField(row, "businessName"),
+        websiteUrl: pickLeadgenCsvField(row, "website"),
+        location: pickLeadgenCsvField(row, "location"),
+        category: pickLeadgenCsvField(row, "category"),
+        phone: pickLeadgenCsvField(row, "phone"),
+        email: pickLeadgenCsvField(row, "email"),
+        notes: pickLeadgenCsvField(row, "notes"),
       }))
     : parseLines(rawText);
 

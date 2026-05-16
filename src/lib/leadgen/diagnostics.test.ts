@@ -8,6 +8,12 @@ describe("leadgen diagnostics", () => {
     expect(sheets?.status).toBe("missing_env");
   });
 
+  it("shows missing env for yelp when key is absent", () => {
+    const diagnostics = buildConnectorDiagnostics({});
+    const yelp = diagnostics.find((item) => item.id === "diag-yelp-fusion");
+    expect(yelp?.status).toBe("missing_env");
+  });
+
   it("marks mock provider as mock and safe", () => {
     const diagnostics = buildConnectorDiagnostics({});
     const mock = diagnostics.find((item) => item.id === "diag-mock-local");

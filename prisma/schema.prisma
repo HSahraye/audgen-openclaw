@@ -138,6 +138,9 @@ model Workspace {
   communicationEvents CommunicationEvent[]
   notifications      Notification[]
   unsubscribedContacts UnsubscribedContact[]
+  leadgenOpportunities LeadgenOpportunity[]
+  leadgenSavedViews  LeadgenSavedView[]
+  leadgenActivityLogs LeadgenActivityLog[]
 }
 
 model User {
@@ -832,4 +835,84 @@ model UnsubscribedContact {
   @@index([workspaceId, createdAt])
   @@unique([workspaceId, email])
   @@unique([workspaceId, phone])
+}
+
+model LeadgenOpportunity {
+  id                        String               @id @default(cuid())
+  workspaceId               String
+  businessName              String
+  category                  String?
+  city                      String
+  state                     String
+  address                   String?
+  websiteUrl                String?
+  googleProfileUrl          String?
+  phone                     String?
+  email                     String?
+  rating                    Float?
+  reviewCount               Int?
+  hasWebsite                Boolean              @default(false)
+  hasGoogleBusinessProfile  Boolean              @default(false)
+  hasBookingLink            Boolean              @default(false)
+  hasContactForm            Boolean              @default(false)
+  hasSocialLinks            Boolean              @default(false)
+  websiteQuality            String               @default("none")
+  responseSpeedSignal       String               @default("unknown")
+  source                    String               @default("manual_csv")
+  sourceUrl                 String?
+  status                    String               @default("discovered")
+  estimatedNeedScore        Int                  @default(50)
+  estimatedRevenuePotential Int                  @default(0)
+  opportunityLevel          String               @default("Medium")
+  presenceGapsJson          String               @default("[]")
+  pitchAnglesJson           String               @default("[]")
+  recommendedOffer          String               @default("Presence Labs Conversion Upgrade")
+  suggestedPitch            String               @default("")
+  sourceMetricsJson         String?
+  lastActionAt              DateTime?
+  externalId                String?
+  legacyQueueItemId         String?
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+  workspace                 Workspace            @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  activityLogs              LeadgenActivityLog[]
+
+  @@unique([workspaceId, externalId])
+  @@index([workspaceId, status, estimatedNeedScore])
+  @@index([workspaceId, estimatedNeedScore])
+  @@index([workspaceId, updatedAt])
+  @@index([workspaceId, category])
+  @@index([workspaceId, source])
+}
+
+model LeadgenSavedView {
+  id              String    @id @default(cuid())
+  workspaceId     String
+  name            String
+  slug            String
+  filtersJson     String
+  columnOrderJson String?
+  sortingJson     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, updatedAt])
+}
+
+model LeadgenActivityLog {
+  id            String            @id @default(cuid())
+  workspaceId   String
+  opportunityId String
+  eventType     String
+  detail        String
+  source        String            @default("leadgen")
+  metadataJson  String?
+  createdAt     DateTime          @default(now())
+  workspace     Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  opportunity   LeadgenOpportunity @relation(fields: [opportunityId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, opportunityId, createdAt])
+  @@index([workspaceId, eventType, createdAt])
 }

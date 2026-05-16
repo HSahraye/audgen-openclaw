@@ -26,4 +26,12 @@ describe("leadgen source adapters", () => {
     expect(sheets?.enabled).toBe(false);
     expect(sheets?.requiresEnv).toContain("GOOGLE_SHEETS_CLIENT_EMAIL");
   });
+
+  it("includes scaffolded Yelp adapter with env requirements", () => {
+    const adapters = getLeadSourceAdapters({ yelpConfigured: false });
+    const yelp = adapters.find((adapter) => adapter.id === "yelp_fusion");
+    expect(yelp).toBeDefined();
+    expect(yelp?.enabled).toBe(false);
+    expect(yelp?.requiresEnv).toContain("YELP_API_KEY");
+  });
 });

@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { pick } from "@/lib/csv";
+import { pickLeadgenCsvField } from "@/lib/leadgen/csv-header-aliases";
 import { generateAudit } from "@/lib/audit-engine";
 import { enforceAuditGeneration, enforceImportLimit, ensureWorkspaceOperational } from "@/lib/billing/entitlements";
 import { incrementUsageMetric } from "@/lib/billing/usage";
@@ -57,15 +57,15 @@ export function serializeImportJob(job: {
 }
 
 async function processRow(row: CsvRow, index: number, workspaceId: string) {
-  const businessName = pick(row, ["business name", "name", "business", "company"]);
-  const websiteUrl = pick(row, ["website", "website url", "url", "site"]);
+  const businessName = pickLeadgenCsvField(row, "businessName");
+  const websiteUrl = pickLeadgenCsvField(row, "website");
   const websiteKey = normalizeWebsiteKey(websiteUrl);
-  const location = pick(row, ["city", "location", "area"]);
-  const ownerName = pick(row, ["owner", "owner name", "contact", "contact name"]);
-  const category = pick(row, ["industry/category", "industry", "category", "type"]);
-  const phone = pick(row, ["phone", "phone number", "mobile"]);
-  const email = pick(row, ["email", "email address"]);
-  const notes = pick(row, ["notes", "note", "description"]);
+  const location = pickLeadgenCsvField(row, "location");
+  const ownerName = pickLeadgenCsvField(row, "ownerName");
+  const category = pickLeadgenCsvField(row, "category");
+  const phone = pickLeadgenCsvField(row, "phone");
+  const email = pickLeadgenCsvField(row, "email");
+  const notes = pickLeadgenCsvField(row, "notes");
 
   if (!businessName && !websiteUrl) {
     return { kind: "failed" as const, error: `Row ${index + 2}: missing business name and website.` };

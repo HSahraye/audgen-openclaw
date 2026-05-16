@@ -1,9 +1,13 @@
+import { GooglePlacesAdapter } from "@/lib/leadgen/live-adapters/google-places-adapter";
+import type { LiveAdapterQuery } from "@/lib/leadgen/live-adapters/types";
+import { YelpAPIAdapter } from "@/lib/leadgen/live-adapters/yelp-api-adapter";
 import { getMockLeadOpportunities } from "@/lib/leadgen/mock-data";
 import type { LeadOpportunity, LeadSourceType } from "@/lib/leadgen/types";
 
 type ConnectorEnvFlags = {
   googleSheetsConfigured?: boolean;
   googlePlacesConfigured?: boolean;
+  yelpConfigured?: boolean;
 };
 
 export type LeadSourceAdapter = {
@@ -13,7 +17,7 @@ export type LeadSourceAdapter = {
   enabled: boolean;
   requiresEnv: string[];
   safetyNotes: string;
-  fetchLeads: () => Promise<LeadOpportunity[]>;
+  fetchLeads: (query?: LiveAdapterQuery) => Promise<LeadOpportunity[]>;
 };
 
 function disabledAdapter(
@@ -37,6 +41,12 @@ function disabledAdapter(
 }
 
 export function getLeadSourceAdapters(flags: ConnectorEnvFlags = {}): LeadSourceAdapter[] {
+  const googlePlacesAdapter = new GooglePlacesAdapter();
+  const yelpApiAdapter = new YelpAPIAdapter();
+  const googlePlacesConfigured =
+    flags.googlePlacesConfigured ?? Boolean(process.env.GOOGLE_PLACES_API_KEY?.trim());
+  const yelpConfigured = flags.yelpConfigured ?? Boolean(process.env.YELP_API_KEY?.trim());
+
   const mockAdapter: LeadSourceAdapter = {
     id: "mock_local",
     label: "Mock Local Dataset",
@@ -89,21 +99,33 @@ export function getLeadSourceAdapters(flags: ConnectorEnvFlags = {}): LeadSource
         "Missing environment variables. No external calls executed.",
       );
 
-  const googlePlaces = flags.googlePlacesConfigured
-    ? disabledAdapter(
-        "google_places",
-        "Google Places Discovery",
-        "Discover local businesses from city + category terms.",
-        ["GOOGLE_PLACES_API_KEY"],
-        "Connector scaffolded but disabled until explicit approval.",
-      )
-    : disabledAdapter(
-        "google_places",
-        "Google Places Discovery",
-        "Discover local businesses from city + category terms.",
-        ["GOOGLE_PLACES_API_KEY"],
-        "No API key configured. No external calls executed.",
-      );
+  const googlePlaces: LeadSourceAdapter = {
+    id: "google_places",
+    label: "Google Places Discovery",
+    description: "Discover local businesses from city + category terms.",
+    enabled: googlePlacesConfigured,
+    requiresEnv: ["GOOGLE_PLACES_API_KEY"],
+    safetyNotes:
+      "Phase-4 scaffold. Blocks without env key, honors LEADGEN_SANDBOX_MODE cache bypass, and enforces kill-switch + result caps.",
+    async fetchLeads(query) {
+      const result = await googlePlacesAdapter.fetchLeads(query);
+      return result.leads;
+    },
+  };
+
+  const yelpFusion: LeadSourceAdapter = {
+    id: "yelp_fusion",
+    label: "Yelp Fusion Discovery",
+    description: "Find local opportunities via Yelp categories and geographies.",
+    enabled: yelpConfigured,
+    requiresEnv: ["YELP_API_KEY"],
+    safetyNotes:
+      "Phase-4 scaffold. Blocks without env key, honors LEADGEN_SANDBOX_MODE cache bypass, and enforces kill-switch + result caps.",
+    async fetchLeads(query) {
+      const result = await yelpApiAdapter.fetchLeads(query);
+      return result.leads;
+    },
+  };
 
   const futureConnector = disabledAdapter(
     "future_connector",
@@ -119,6 +141,7 @@ export function getLeadSourceAdapters(flags: ConnectorEnvFlags = {}): LeadSource
     domainListAdapter,
     googleSheets,
     googlePlaces,
+    yelpFusion,
     futureConnector,
   ];
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { BRANDING_CONFIG } from "@/config/branding";
 import { BRAND } from "@/lib/brand";
 import { assertProductionEnv, getAppOrigin } from "@/lib/env";
 
@@ -15,7 +16,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: `${BRAND.productName} — ${BRAND.tagline}`,
+  title: `${BRANDING_CONFIG.appName} — ${BRANDING_CONFIG.metaTitleSuffix}`,
   description: BRAND.description,
   metadataBase: getAppOrigin() ? new URL(getAppOrigin()) : undefined,
   icons: {

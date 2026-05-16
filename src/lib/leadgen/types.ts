@@ -2,6 +2,7 @@ export const LEAD_SOURCES = [
   "manual_csv",
   "google_sheets",
   "google_places",
+  "yelp_fusion",
   "domain_list",
   "mock_local",
   "future_connector",
@@ -69,6 +70,8 @@ export type LeadgenSavedView = {
   id: string;
   name: string;
   filters: LeadOpportunityFilters;
+  columnOrder?: string[];
+  sorting?: string;
   isPreset: boolean;
 };
 

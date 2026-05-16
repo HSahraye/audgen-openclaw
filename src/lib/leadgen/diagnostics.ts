@@ -24,6 +24,7 @@ type ConnectorEnvState = {
   GOOGLE_SHEETS_PRIVATE_KEY?: string;
   GOOGLE_SHEETS_SPREADSHEET_ID?: string;
   GOOGLE_PLACES_API_KEY?: string;
+  YELP_API_KEY?: string;
 };
 
 function hasAllEnv(values: Array<string | undefined>) {
@@ -38,6 +39,7 @@ export function buildConnectorDiagnostics(env: ConnectorEnvState): ConnectorDiag
     env.GOOGLE_SHEETS_SPREADSHEET_ID,
   ]);
   const placesEnv = hasAllEnv([env.GOOGLE_PLACES_API_KEY]);
+  const yelpEnv = hasAllEnv([env.YELP_API_KEY]);
 
   return [
     {
@@ -111,6 +113,19 @@ export function buildConnectorDiagnostics(env: ConnectorEnvState): ConnectorDiag
       safeNow: true,
       lastCheckedAt: now,
       safetyNote: "Manual import only. No crawling or scraping.",
+    },
+    {
+      id: "diag-yelp-fusion",
+      label: "Yelp Fusion",
+      sourceType: "yelp_fusion",
+      status: yelpEnv ? "requires_approval" : "missing_env",
+      requiredEnv: ["YELP_API_KEY"],
+      hasExternalCalls: true,
+      safeNow: false,
+      lastCheckedAt: now,
+      safetyNote: yelpEnv
+        ? "Disabled in phase 2/3 for live-cost safety pending explicit approval."
+        : "Missing API key and approval gate.",
     },
     {
       id: "diag-future-scraper",

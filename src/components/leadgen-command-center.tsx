@@ -25,8 +25,10 @@ import {
   queueLeadgenAuditGenerationAction,
   saveLeadgenViewAction,
 } from "@/app/actions/leadgen";
-import { parseCsv, pick } from "@/lib/csv";
+import { BRANDING_CONFIG } from "@/config/branding";
+import { parseCsv } from "@/lib/csv";
 import type { ConnectorDiagnostic } from "@/lib/leadgen/diagnostics";
+import { pickLeadgenCsvField } from "@/lib/leadgen/csv-header-aliases";
 import { toGoogleSheetsReadyCsv, toLeadGenCsv } from "@/lib/leadgen/export";
 import { applyLeadOpportunityFilters } from "@/lib/leadgen/filters";
 import { getMockLeadOpportunities } from "@/lib/leadgen/mock-data";
@@ -118,13 +120,13 @@ function connectorStatusTone(status: ConnectorDiagnostic["status"]) {
 }
 
 function toImportedOpportunity(row: Record<string, string>, idx: number): LeadOpportunity {
-  const businessName = pick(row, ["business name", "name", "company"]);
-  const city = pick(row, ["city", "location"]);
-  const state = pick(row, ["state"]) || "CA";
-  const website = pick(row, ["website", "website url", "url"]) || null;
-  const gbp = pick(row, ["google profile", "google profile url", "google business profile"]) || null;
-  const ratingRaw = pick(row, ["rating"]);
-  const reviewsRaw = pick(row, ["review count", "reviews"]);
+  const businessName = pickLeadgenCsvField(row, "businessName");
+  const city = pickLeadgenCsvField(row, "location");
+  const state = pickLeadgenCsvField(row, "state") || "CA";
+  const website = pickLeadgenCsvField(row, "website") || null;
+  const gbp = pickLeadgenCsvField(row, "googleProfileUrl") || null;
+  const ratingRaw = pickLeadgenCsvField(row, "rating");
+  const reviewsRaw = pickLeadgenCsvField(row, "reviewCount");
   const rating = ratingRaw ? Number(ratingRaw) : null;
   const reviewCount = reviewsRaw ? Number(reviewsRaw) : null;
   const now = new Date().toISOString();
@@ -133,14 +135,14 @@ function toImportedOpportunity(row: Record<string, string>, idx: number): LeadOp
     ...scoreLeadOpportunity({
       id: `csv-${idx}-${businessName || "lead"}`.toLowerCase().replace(/[^a-z0-9-]/g, "-"),
       businessName: businessName || `Imported Lead ${idx + 1}`,
-      category: pick(row, ["category", "industry", "industry/category"]) || "Local Services",
+      category: pickLeadgenCsvField(row, "category") || "Local Services",
       city: city || "Unknown",
       state,
-      phone: pick(row, ["phone", "phone number"]) || null,
-      email: pick(row, ["email"]) || null,
+      phone: pickLeadgenCsvField(row, "phone") || null,
+      email: pickLeadgenCsvField(row, "email") || null,
       website,
       googleProfileUrl: gbp,
-      address: pick(row, ["address"]) || null,
+      address: pickLeadgenCsvField(row, "address") || null,
       rating: Number.isFinite(rating) ? rating : null,
       reviewCount: Number.isFinite(reviewCount) ? reviewCount : null,
       hasWebsite: Boolean(website),
@@ -272,7 +274,7 @@ export function LeadGenCommandCenter({
     startAddTransition(async () => {
       setErrorMessage("");
       const result = await addSelectedLeadgenToAudgenAction(selectedLeads);
-      setInfoMessage(`Added ${result.added} lead(s) to AudGen queue.`);
+      setInfoMessage(`Added ${result.added} lead(s) to ${BRANDING_CONFIG.appName} queue.`);
       setLeads((current) => current.map((lead) => (selectedIds.has(lead.id) ? { ...lead, status: "queued" } : lead)));
       router.refresh();
     });
@@ -401,15 +403,21 @@ export function LeadGenCommandCenter({
   const queueAuditGeneration = () => {
     if (!selectedLeads.length) return;
     startPreflightTransition(async () => {
-      const result = await queueLeadgenAuditGenerationAction(selectedLeads.map((lead) => lead.id));
-      if (!result.ok) {
-        setErrorMessage(result.error ?? "Could not queue audit generation.");
-        return;
+      try {
+        const result = await queueLeadgenAuditGenerationAction(selectedLeads.map((lead) => lead.id));
+        if (!result.ok) {
+          setErrorMessage(result.error ?? "Could not queue audit generation.");
+          return;
+        }
+        setInfoMessage(`Queued ${result.queued} lead(s) for approval-gated audit generation.`);
+        setShowAuditPreflight(false);
+        setLeads((current) => current.map((lead) => (selectedIds.has(lead.id) ? { ...lead, status: "queued" } : lead)));
+        router.refresh();
+      } catch (error) {
+        setErrorMessage(
+          error instanceof Error ? error.message : "Batch exceeds allowed preflight limits.",
+        );
       }
-      setInfoMessage(`Queued ${result.queued} lead(s) for approval-gated audit generation.`);
-      setShowAuditPreflight(false);
-      setLeads((current) => current.map((lead) => (selectedIds.has(lead.id) ? { ...lead, status: "queued" } : lead)));
-      router.refresh();
     });
   };
 
@@ -425,15 +433,15 @@ export function LeadGenCommandCenter({
               <p className="text-xs font-black uppercase tracking-[0.28em] text-lime-700">Presence Labs</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">LeadGen Command Center</h1>
               <p className="mt-2 text-sm text-slate-600">
-                Find high-fit local businesses, qualify their online presence gaps, and move the best opportunities into your AudGen sales engine.
+                Find high-fit local businesses, qualify their online presence gaps, and move the best opportunities into your {BRANDING_CONFIG.appName} sales engine.
               </p>
               <p className="mt-2 text-xs font-black uppercase tracking-[0.16em] text-slate-500">
-                Find Leads → Qualify → Export → Add to AudGen → Generate Audit → Outreach → Revenue
+                Find Leads → Qualify → Export → Add to {BRANDING_CONFIG.appName} → Generate Audit → Outreach → Revenue
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={() => void exportSelected()} disabled={!canRunSelectionActions} title={!canRunSelectionActions ? "Select leads to export." : undefined} className="inline-flex h-11 items-center gap-2 rounded-2xl bg-slate-950 px-4 text-xs font-black text-white transition hover:bg-slate-800 disabled:opacity-50"><Download className="size-4" /> Export Selected</button>
-              <button type="button" onClick={addSelectedToAudgen} disabled={!canRunSelectionActions || isAdding} title={!canRunSelectionActions ? "Select leads to add into AudGen queue." : undefined} className="inline-flex h-11 items-center gap-2 rounded-2xl bg-lime-300 px-4 text-xs font-black text-slate-950 transition hover:bg-lime-200 disabled:opacity-50">{isAdding ? "Adding..." : "Add Selected to AudGen"}</button>
+              <button type="button" onClick={addSelectedToAudgen} disabled={!canRunSelectionActions || isAdding} title={!canRunSelectionActions ? `Select leads to add into ${BRANDING_CONFIG.appName} queue.` : undefined} className="inline-flex h-11 items-center gap-2 rounded-2xl bg-lime-300 px-4 text-xs font-black text-slate-950 transition hover:bg-lime-200 disabled:opacity-50">{isAdding ? "Adding..." : `Add Selected to ${BRANDING_CONFIG.appName}`}</button>
               <label htmlFor="leadgen-import-csv-file" className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50">
                 <Upload className="size-4" /> {isImporting ? "Importing..." : "Import CSV"}
                 <input id="leadgen-import-csv-file" name="leadgenCsvFile" type="file" accept=".csv,text/csv" className="hidden" onChange={(event) => { const file = event.target.files?.[0]; if (file) importCsvFile(file); }} />
@@ -481,6 +489,7 @@ export function LeadGenCommandCenter({
               <option value="domain_list">Website/domain list</option>
               <option value="google_sheets">Google Sheets (future)</option>
               <option value="google_places">Google Places (future)</option>
+              <option value="yelp_fusion">Yelp Fusion (future)</option>
               <option value="future_connector">Local category search (future)</option>
             </select>
             <label htmlFor="leadgen-filter-min-score" className="grid gap-1 text-xs font-black uppercase tracking-[0.14em] text-slate-400">
