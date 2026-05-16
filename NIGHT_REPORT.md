@@ -295,12 +295,37 @@ Cycles 1-2 from shift 1 covered hygiene + baseline; cycles 3-8 are this shift's 
 - **Commit:** `5086659 test(analytics): cover SalesOsEvent + product analytics wrappers (10 tests)`.
 - **Next candidate:** final baseline + report sync.
 
-### Cycle 35 — Final baseline check + report sync
+### Cycle 35 — Baseline check + report sync
 - **Task:** Full `npm run check` + record cycles 26-34.
-- **Files:** none (this commit).
-- **Checks:** **509/509 vitest, 77 test files**, lint clean, tsc clean.
-- **Result:** ✅ All green. Commits ahead of develop: 60. From baseline 212/45 → +297 tests, +32 test files.
-- **Commit:** this docs update.
+- **Files:** none.
+- **Checks:** 509/509 vitest, 77 test files, lint clean, tsc clean.
+- **Result:** ✅.
+- **Commit:** `0b81829 docs: record cycles 26-35 in NIGHT_REPORT (509/509, 60 commits ahead)`.
+- **Next candidate:** scoring engine extended coverage.
+
+### Cycle 36 — scoring/engine extended tests
+- **Task:** 11 new tests covering scoreSignals.
+- **Why:** Engine had 1 test (strong > weak); every dimension's branches and the composite-weighting contract were untested.
+- **Files:** `src/lib/intelligence/scoring/engine.extra.test.ts` (new).
+- **Checks:** vitest (11/11).
+- **Result:** ✅ Clamping invariants, integer rounding, worst-case floor, performance tiers, https collapse, CTA+contact collapse, a11y rewards, branding cluster, weight priority (conversion > accessibility), override merging.
+- **Commit:** `714b16c test(scoring): extended coverage for scoreSignals (11 tests)`.
+- **Next candidate:** momentum engine extended coverage.
+
+### Cycle 37 — momentum engine extended tests
+- **Task:** 12 new tests covering computeLeadMomentum.
+- **Why:** Existing 2-test baseline covered the trivial high/low cases; branch coverage for action copy + thresholds + score caps was missing.
+- **Files:** `src/lib/intelligence/momentum/engine.extra.test.ts` (new).
+- **Checks:** vitest (12/12 — caught 2 test-author assumptions about defaults along the way).
+- **Result:** ✅ Score caps locked at [0,100] with integer rounding, saturated signals hit exactly 100, trend thresholds (rising>=68 / stable / cooling<38), urgencyDelta +12/0/-10, all 4 action-copy paths covered. Also pinned the documented 'empty input → cooling' behaviour (outreachRecencyHours defaults to 999 → stale penalty).
+- **Commit:** `8557d29 test(momentum): cover score caps + trend thresholds + action copy (12 tests)`.
+- **Next candidate:** baseline + backlog sync.
+
+### Cycle 38 — Baseline + backlog sync
+- **Task:** Full `npm run check`, mark backlog items completed, record cycles 36-38.
+- **Files:** `NIGHT_REPORT.md`, `AUTOPILOT_BACKLOG.md`.
+- **Checks:** **532/532 vitest, 79 test files**, lint + tsc clean.
+- **Result:** ✅ Commits ahead of develop: 63. From baseline 212/45 → +320 tests, +34 test files.
 - **Next candidate:** keep cycling.
 
 ## Approval Parking Lot
@@ -320,7 +345,7 @@ Items that need Hamid's sign-off before they can ship. Documented and skipped pe
 
 ## TL;DR
 
-**60 small commits** across three shifts. Lint clean, `tsc --noEmit` clean, **509/509 tests passing** (was 212/212 at start of shift 1 — **+297 tests, +32 test files**), production build green (#3 of 5 budget used). Shift 3 has 33 documented work cycles (3 through 35) per the full-shift rule. Branch pushed to origin after each commit.
+**63 small commits** across three shifts. Lint clean, `tsc --noEmit` clean, **532/532 tests passing** (was 212/212 at start of shift 1 — **+320 tests, +34 test files**), production build green (#3 of 5 budget used). Shift 3 has 36 documented work cycles (3 through 38) per the full-shift rule. Branch pushed to origin after each commit.
 
 Shift 1 (7 commits): hygiene + UX safety net (loading/404) + logger redaction + CI workflow + print stylesheet + CSV tests.
 

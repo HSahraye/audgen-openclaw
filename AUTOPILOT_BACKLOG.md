@@ -6,17 +6,17 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done (commit hash in NIGHT_R
 
 ## Tests for untested libraries (pure logic, no DB)
 - [x] B-T01 — `audit-log.ts` shape + write helpers → `6e90bff` (6 tests)
-- [ ] B-T02 — `events.ts` event tracker shape (if pure)
+- [x] B-T02 — `events.ts` event tracker + analytics wrappers → `26c9af8` (6) + `5086659` (10)
 - [~] B-T03 — `templates/resolver.ts` (existing `resolve.test.ts` covers basics; cache TTL still untested)
 - [x] B-T04 — `templates/defaults.ts` default config integrity → `c975100` (10 tests)
-- [~] B-T05 — `intelligence/scoring/index.ts` (re-export only; underlying engine has tests)
+- [x] B-T05 — `intelligence/scoring/engine.ts` extended coverage → `714b16c` (11 tests on top of the existing 1)
 - [x] B-T06 — `intelligence/recommendations/index.ts` covered via `9c9ca7b` extra tests + existing `infer.test.ts`
 - [x] B-T07 — `intelligence/normalization/findings.ts` finding normalization → `402578b` (9 tests)
 - [x] B-T08 — `intelligence/outreach/angles.ts` outreach angle generator → `47ea8d8` (10 tests)
-- [ ] B-T09 — `intelligence/narratives/generate.ts` narrative builder
-- [ ] B-T10 — `automation/reply-assistant.ts` reply suggestion logic
-- [ ] B-T11 — `automation/insights.ts` automation insights
-- [ ] B-T12 — `automation/playbooks.ts` playbook helpers
+- [x] B-T09 — `intelligence/narratives/generate.ts` narrative builder → `40f050b` (7 tests)
+- [x] B-T10 — `automation/reply-assistant.ts` reply suggestion logic → `f4d0806` (7 tests)
+- [x] B-T11 — `automation/insights.ts` automation insights → `2ea90ae` (8 tests)
+- [x] B-T12 — `automation/playbooks.ts` playbook helpers → `3aeb2d0` (9 tests)
 - [x] B-T13 — `automation/tasks.ts` task builders → `45c34d9` (6 tests)
 - [x] B-T14 — `automation/timeline.ts` timeline assembly → `89cec69` (9 tests)
 - [x] B-T15 — `prep-links.ts` prep URL builder → `0671805` (5 tests)
@@ -39,19 +39,19 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done (commit hash in NIGHT_R
 - [ ] B-P05 — `apple-touch-icon` size variants
 
 ## Security hardening (local-only, defensive)
-- [x] B-S01 — Constant-time compare for `PUBLIC_INGEST_API_KEY` in `/api/public/leads` (audit, not change behaviour if already safe)
+- [x] B-S01 — Constant-time compare for `PUBLIC_INGEST_API_KEY` (audit, no change needed; already safe)
 - [ ] B-S02 — Rate-limit unit tests for `enforceRateLimit`
 - [ ] B-S03 — Audit `CSP` header for routes that legitimately need inline scripts; document trade-offs (no behaviour change)
 - [ ] B-S04 — Add `nosniff` / `frame-ancestors` audit (defaults already set in `next.config.ts`; document)
-- [ ] B-S05 — Tests for `auth/scrub` to lock down behaviour beyond the existing mirror test
+- [x] B-S05 — Edge-case tests for `auth/scrub` → `6e206da` (7 tests)
 
 ## Docs & DX
-- [x] B-D01 — `CONTRIBUTING.md` with branch policy, commit style, test rules → `616cd6f`
-- [ ] B-D02 — `docs/architecture.md` high-level diagram (text-based)
-- [x] B-D03 — Update `README.md` "Commands" section with `typecheck` script → `4117dc8`
-- [x] B-D04 — `docs/local-postgres.md` quick-start → `deda8ff`
-- [x] B-D05 — Add `npm run typecheck` to `package.json` → `5b4e052`
-- [x] B-D06 — Add `npm run check` script → `5b4e052`
+- [x] B-D01 — `CONTRIBUTING.md` → `616cd6f`
+- [x] B-D02 — `docs/architecture.md` → `a7e9371`
+- [x] B-D03 — README Commands refresh → `4117dc8`
+- [x] B-D04 — `docs/local-postgres.md` → `deda8ff`
+- [x] B-D05 — `npm run typecheck` script → `5b4e052`
+- [x] B-D06 — `npm run check` script → `5b4e052`
 
 ## Bug fixes (small, reversible)
 - [→parking-lot] B-B01 — narrow `connect-src` CSP. Moved to Approval Parking Lot: risk of breaking production if I miss an active provider domain. Needs prod observability first.
