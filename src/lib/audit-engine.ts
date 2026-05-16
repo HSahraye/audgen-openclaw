@@ -4,6 +4,7 @@ import { enforceAuditGeneration, ensureWorkspaceOperational } from "@/lib/billin
 import { generateLeadIntelligence } from "@/lib/intelligence/engine";
 import { resolveGenerationContext } from "@/lib/generation/context";
 import { resolvePublicSenderName } from "@/lib/branding";
+import { estimateAnnualLoss, packageName, scoreLead } from "./audit-scoring";
 
 const inputSchema = z.object({
   businessName: z.string().min(1).max(140),
@@ -33,48 +34,6 @@ const businessCategoryDefaults: Record<string, string> = {
   accountant: "Accounting prospects compare credibility. A thin web presence with no service list or proof loses them before the first call.",
   hvac: "HVAC calls spike seasonally and urgently. A weak mobile presence and no booking option loses jobs to competitors on the same Google page.",
 };
-
-function scoreLead(checks: AuditChecks, input: AuditInput) {
-  let score = 55;
-  if (!checks.hasWebsite) score += 25;
-  if (checks.outdatedWebsite) score += 14;
-  if (!checks.mobileFriendly) score += 10;
-  if (!checks.clearCta) score += 10;
-  if (!checks.phoneEasyToFind) score += 8;
-  if (!checks.reviewsVisible) score += 6;
-  if (!checks.onlineBooking) score += 7;
-  if (!checks.gallery) score += 4;
-  if (!checks.serviceList) score += 4;
-  if (!checks.trustSection) score += 4;
-  if (!checks.pricing) score += 3;
-  if (!checks.faq) score += 2;
-  if (input.googleProfileUrl?.trim()) score += 3;
-  return Math.max(1, Math.min(100, score));
-}
-
-function packageName(score: number, checks: AuditChecks, packageLabels?: Record<string, string>) {
-  const fallback = "Presence Labs Local Trust Tune-Up";
-  if (!packageLabels) {
-    if (!checks.hasWebsite || score >= 86) return "Presence Labs Launch Package";
-    if (score >= 72) return "Presence Labs Conversion Upgrade";
-    return fallback;
-  }
-  if (!checks.hasWebsite || score >= 86) return packageLabels.launch || "Presence Labs Launch Package";
-  if (score >= 72) return packageLabels.conversion || "Presence Labs Conversion Upgrade";
-  return packageLabels.trust || fallback;
-}
-
-function estimateAnnualLoss(category: string) {
-  const lower = category.toLowerCase();
-  if (/restaurant|food/.test(lower)) return 20_000;
-  if (/contractor|roof|plumb|electric|hvac|home/.test(lower)) return 15_000;
-  if (/mechanic|auto|repair/.test(lower)) return 12_000;
-  if (/landscap|lawn/.test(lower)) return 10_000;
-  if (/clean/.test(lower)) return 8_000;
-  if (/detail/.test(lower)) return 5_000;
-  if (/barber|salon/.test(lower)) return 4_000;
-  return 7_500;
-}
 
 function localAssets(
   input: AuditInput,
