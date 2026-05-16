@@ -10,11 +10,11 @@
 
 ## TL;DR
 
-**24 small commits** across two shifts. Lint clean, `tsc --noEmit` clean, **347/347 tests passing** (was 212/212 at start of shift 1 — **+135 tests, +13 test files**), production build green (#2 of 5 budget used).
+**26 small commits** across two shifts. Lint clean, `tsc --noEmit` clean, **353/353 tests passing** (was 212/212 at start of shift 1 — **+141 tests, +14 test files**), production build green (#2 of 5 budget used).
 
 Shift 1 (7 commits): hygiene + UX safety net (loading/404) + logger redaction + CI workflow + print stylesheet + CSV tests.
 
-Shift 2 (17 commits): finished loading.tsx coverage on every remaining route, error boundaries on customer-facing pages, robots.txt + sitemap.xml, Open Graph + Twitter metadata for share unfurls, extracted audit-scoring helpers + 20 tests, lead-form trim+lowercase normalization, defensive unsubscribeUrl sanitization in the email helper, and new test files for money / audit-slugs / branding / public-url / objections / audit-links-security / utils / communication-links / leads/form-schema / communication/email.
+Shift 2 (19 commits): finished loading.tsx coverage on every remaining route, error boundaries on customer-facing pages, robots.txt + sitemap.xml, Open Graph + Twitter metadata for share unfurls, extracted audit-scoring helpers + 20 tests, lead-form trim+lowercase normalization, defensive unsubscribeUrl sanitization in the email helper, new public /api/health endpoint for uptime monitors, and new test files for money / audit-slugs / branding / public-url / objections / audit-links-security / utils / communication-links / leads/form-schema / communication/email / api-health.
 
 No destructive DB actions. No deploys. No outbound emails/SMS/calls. No prod env or DNS changes. No force pushes. No model/API external calls used (cost governor: 0/25 budget consumed).
 
@@ -50,6 +50,8 @@ autopilot/night-audgen-2026-05-16
 
 ```
 Shift 2:
+0afe06a feat(ops): public /api/health endpoint for uptime monitors (+6 tests)
+adc6cae docs: final shift 2 report tally
 980bf21 fix(security): sanitize unsubscribeUrl before HTML interpolation (+10 tests)
 2b3a0df feat(leads): trim+lowercase normalization on lead-create form (+8 tests)
 a55b024 docs: update NIGHT_REPORT + BUGS_FOUND with shift 2 progress
@@ -108,7 +110,7 @@ See `BUGS_FOUND.md` for the full list. Highlights:
 |---|---|---|
 | `npx eslint . --max-warnings 0` | ✅ clean | Ran many times between commits. |
 | `npx tsc --noEmit` | ✅ clean | Was emitting 28 errors before commit `50899eb`; clean since. |
-| `npm test` (vitest) | ✅ **347/347 passing** | Was 212 at start. +135 tests, +13 test files. |
+| `npm test` (vitest) | ✅ **353/353 passing** | Was 212 at start. +141 tests, +14 test files. |
 | `npm run build` | ✅ clean (×2) | Build #1 after shift 1; build #2 after the lead-form refactor + audit-scoring extraction. Both passes generated all 43 routes including the new /robots.txt and /sitemap.xml static. 2 of 5 builds used. |
 
 ### Suite breakdown by new test file (shift 2)
@@ -126,6 +128,7 @@ See `BUGS_FOUND.md` for the full list. Highlights:
 | `src/lib/communication/links.test.ts` | 11 | mailto / sms / wa.me href builders. |
 | `src/lib/leads/form-schema.test.ts` | 8 | Trim + lowercase normalization on lead create. |
 | `src/lib/communication/email/index.test.ts` | 10 | unsubscribeUrl safeHttpUrl + escapeHtml + unsubscribeBlock. |
+| `src/app/api/health/route.test.ts` | 6 | GET/HEAD shape, cache header, commit truncation, env priority. |
 
 ## Hard-stop / approval-required items
 
