@@ -63,7 +63,19 @@ export default function RootLayout({
       data-scroll-behavior="smooth"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {/* a11y: skip-to-main link is the first focusable element. Hidden
+            visually until focused. Pages should give their primary <main>
+            an id="main" for the target to scroll into view; without it the
+            link is still harmless (focus moves on, no scroll). */}
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-2xl focus:bg-slate-950 focus:px-4 focus:py-2 focus:text-sm focus:font-black focus:text-white focus:shadow-lg"
+        >
+          Skip to main content
+        </a>
+        {children}
+      </body>
     </html>
   );
 }
