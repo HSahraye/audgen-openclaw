@@ -27,17 +27,8 @@ import { getWorkspaceContext, withWorkspaceFallbackScope } from "@/lib/workspace
 const leadStatuses = ["New", "Contacted", "Follow-up", "Won", "Lost"] as const;
 const MAX_SYNC_AUDIT_ROWS_PER_IMPORT = 50;
 
-const formSchema = z.object({
-  businessName: z.string().min(1, "Business name is required."),
-  ownerName: z.string().optional(),
-  category: z.string().optional(),
-  location: z.string().optional(),
-  websiteUrl: z.string().optional(),
-  googleProfileUrl: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().optional(),
-  notes: z.string().optional(),
-});
+import { leadFormSchema } from "@/lib/leads/form-schema";
+const formSchema = leadFormSchema;
 
 const statusSchema = z.object({
   id: z.string().min(1),
