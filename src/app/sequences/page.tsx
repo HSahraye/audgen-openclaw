@@ -20,7 +20,7 @@ export default async function SequencesPage() {
   });
 
   return (
-    <main className="min-h-screen bg-[#f5f7f2] px-4 py-8 text-slate-950 sm:px-6">
+    <main id="main" className="min-h-screen bg-[#f5f7f2] px-4 py-8 text-slate-950 sm:px-6">
       <div className="mx-auto max-w-6xl space-y-5">
         <div className="flex items-center justify-between gap-3">
           <div>

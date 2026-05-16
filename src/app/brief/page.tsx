@@ -153,7 +153,7 @@ export default async function BriefPage() {
   ];
 
   return (
-    <main className="min-h-screen bg-[#f5f7f2] px-4 py-8 text-slate-950 sm:px-6">
+    <main id="main" className="min-h-screen bg-[#f5f7f2] px-4 py-8 text-slate-950 sm:px-6">
       <div className="mx-auto max-w-2xl space-y-6">
 
         {/* Header */}

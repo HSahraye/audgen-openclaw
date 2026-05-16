@@ -139,7 +139,7 @@ Hamid
 ${senderCompanyName}`;
 
   return (
-    <main className="min-h-screen bg-[#f5f7f2] text-slate-950">
+    <main id="main" className="min-h-screen bg-[#f5f7f2] text-slate-950">
       {/* Header */}
       <header className="border-b border-slate-200 bg-white/90 px-5 py-5 backdrop-blur-xl sm:px-8">
         <div className="mx-auto max-w-3xl flex items-center justify-between gap-4">

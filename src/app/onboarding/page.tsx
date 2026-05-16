@@ -24,7 +24,7 @@ export default async function OnboardingPage() {
   const pctLabel = status ? `${Math.round(status.pctComplete * 100)}%` : "\u2014";
 
   return (
-    <main className="min-h-screen bg-[#f5f7f2] px-4 py-8 text-slate-950 sm:px-6">
+    <main id="main" className="min-h-screen bg-[#f5f7f2] px-4 py-8 text-slate-950 sm:px-6">
       <div className="mx-auto max-w-3xl space-y-5">
         <div className="flex items-baseline justify-between">
           <div>
