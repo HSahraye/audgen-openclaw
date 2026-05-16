@@ -54,7 +54,7 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done (commit hash in NIGHT_R
 - [x] B-D06 — Add `npm run check` script → `5b4e052`
 
 ## Bug fixes (small, reversible)
-- [ ] B-B01 — `next.config.ts` `connect-src https: wss:` is broad; narrow to known providers
+- [→parking-lot] B-B01 — narrow `connect-src` CSP. Moved to Approval Parking Lot: risk of breaking production if I miss an active provider domain. Needs prod observability first.
 - [x] B-B02 — Logger default level via `LOG_LEVEL` env var → `b0fa273`
 - [x] B-B03 — `formatRelativeTime` weeks/months/years → `870279a`
 - [ ] B-B04 — `cn()` test for extreme inputs
@@ -71,3 +71,4 @@ Legend: `[ ]` pending · `[~]` in progress · `[x]` done (commit hash in NIGHT_R
 - Strict email validation on lead form (B-19)
 - Two pending Prisma migration plans
 - Nonce-based CSP middleware
+- Narrow `connect-src` CSP to known providers (B-B01) — risk of breaking production if I miss an active provider domain
