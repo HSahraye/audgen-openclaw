@@ -59,10 +59,29 @@ describe("formatRelativeTime", () => {
     expect(formatRelativeTime(new Date(FIXED_NOW - 23 * 60 * 60_000))).toBe("23h ago");
   });
 
-  it("returns days for older times", () => {
+  it("returns days for 1-6 days old", () => {
     expect(formatRelativeTime(new Date(FIXED_NOW - 24 * 60 * 60_000))).toBe("1d ago");
-    expect(formatRelativeTime(new Date(FIXED_NOW - 7 * 24 * 60 * 60_000))).toBe("7d ago");
-    expect(formatRelativeTime(new Date(FIXED_NOW - 30 * 24 * 60 * 60_000))).toBe("30d ago");
+    expect(formatRelativeTime(new Date(FIXED_NOW - 6 * 24 * 60 * 60_000))).toBe("6d ago");
+  });
+
+  it("returns weeks for 1-4 weeks old", () => {
+    expect(formatRelativeTime(new Date(FIXED_NOW - 7 * 24 * 60 * 60_000))).toBe("1w ago");
+    expect(formatRelativeTime(new Date(FIXED_NOW - 14 * 24 * 60 * 60_000))).toBe("2w ago");
+    expect(formatRelativeTime(new Date(FIXED_NOW - 21 * 24 * 60 * 60_000))).toBe("3w ago");
+    expect(formatRelativeTime(new Date(FIXED_NOW - 28 * 24 * 60 * 60_000))).toBe("4w ago");
+  });
+
+  it("returns months for 1-11 months old", () => {
+    expect(formatRelativeTime(new Date(FIXED_NOW - 35 * 24 * 60 * 60_000))).toBe("1mo ago");
+    expect(formatRelativeTime(new Date(FIXED_NOW - 90 * 24 * 60 * 60_000))).toBe("3mo ago");
+    expect(formatRelativeTime(new Date(FIXED_NOW - 180 * 24 * 60 * 60_000))).toBe("6mo ago");
+    expect(formatRelativeTime(new Date(FIXED_NOW - 330 * 24 * 60 * 60_000))).toBe("11mo ago");
+  });
+
+  it("returns years for 1+ year old", () => {
+    expect(formatRelativeTime(new Date(FIXED_NOW - 365 * 24 * 60 * 60_000))).toBe("1y ago");
+    expect(formatRelativeTime(new Date(FIXED_NOW - 2 * 365 * 24 * 60 * 60_000))).toBe("2y ago");
+    expect(formatRelativeTime(new Date(FIXED_NOW - 10 * 365 * 24 * 60 * 60_000))).toBe("10y ago");
   });
 
   it("accepts string inputs (ISO format)", () => {
