@@ -8,6 +8,8 @@ function isInternalPath(pathname: string) {
   if (pathname.startsWith("/api/auth/")) return false;
   if (pathname.startsWith("/api/public/")) return false;
   if (pathname.startsWith("/api/stripe/webhook")) return false;
+  if (pathname === "/api/health" || pathname.startsWith("/api/health/")) return false;
+  if (pathname === "/robots.txt" || pathname === "/sitemap.xml") return false;
   if (pathname.startsWith("/login")) return false;
   if (pathname.startsWith("/signup")) return false;
   if (pathname.startsWith("/about")) return false;
