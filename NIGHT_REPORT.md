@@ -326,6 +326,23 @@ Cycles 1-2 from shift 1 covered hygiene + baseline; cycles 3-8 are this shift's 
 - **Files:** `NIGHT_REPORT.md`, `AUTOPILOT_BACKLOG.md`.
 - **Checks:** **532/532 vitest, 79 test files**, lint + tsc clean.
 - **Result:** ✅ Commits ahead of develop: 63. From baseline 212/45 → +320 tests, +34 test files.
+- **Next candidate:** selectors exhaustive coverage.
+
+### Cycle 39 — selectors exhaustive coverage
+- **Task:** 21 new tests covering lead.ts intelligence selectors.
+- **Why:** 2-test baseline missed cap contracts, urgency threshold boundaries, all priority-state branches, health-state thresholds, fallback paths.
+- **Files:** `src/lib/intelligence/selectors/lead.extra.test.ts` (new).
+- **Checks:** tsc clean, vitest (21/21).
+- **Result:** ✅ Locked: cap of 4 on painPoints/strengths, 5 on outreachAngles; urgency boundaries (70 high, 40 medium, 39 low); health boundaries (45 at-risk, 68 healthy); PAYMENT_READY > HIGH_INTENT > HOT > RISING priority branches; intelligenceJson missing/malformed both produce safe fallbacks; getMomentumLevel respects intelligence momentumScore when supplied, falls back to computeLeadMomentum trend otherwise.
+- **Commit:** `0eac7f9 test(selectors): exhaustive coverage for lead selectors (21 tests)`.
+- **Next candidate:** baseline + build verification.
+
+### Cycle 40 — Baseline check + build #4 verification
+- **Task:** Full `npm run check` + `npm run build` after cycles 36-39.
+- **Why:** 6 source-touching cycles since the last full build; verify cumulative state.
+- **Files:** none.
+- **Checks:** **553/553 vitest, 80 test files**, lint + tsc clean, production build clean (BUILD_ID `9g3qaL4wTg9wiSykySm3f`, 53M artifacts, all 43 routes compiled).
+- **Result:** ✅ Build #4 of 5 budget used. Branch state honest.
 - **Next candidate:** keep cycling.
 
 ## Approval Parking Lot
@@ -345,7 +362,7 @@ Items that need Hamid's sign-off before they can ship. Documented and skipped pe
 
 ## TL;DR
 
-**63 small commits** across three shifts. Lint clean, `tsc --noEmit` clean, **532/532 tests passing** (was 212/212 at start of shift 1 — **+320 tests, +34 test files**), production build green (#3 of 5 budget used). Shift 3 has 36 documented work cycles (3 through 38) per the full-shift rule. Branch pushed to origin after each commit.
+**66 small commits** across three shifts. Lint clean, `tsc --noEmit` clean, **553/553 tests passing** (was 212/212 at start of shift 1 — **+341 tests, +35 test files**), production build green (#4 of 5 budget used). Shift 3 has 38 documented work cycles (3 through 40) per the full-shift rule. Branch pushed to origin after each commit.
 
 Shift 1 (7 commits): hygiene + UX safety net (loading/404) + logger redaction + CI workflow + print stylesheet + CSV tests.
 
