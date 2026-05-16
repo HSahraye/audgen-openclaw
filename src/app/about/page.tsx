@@ -1,12 +1,33 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { AuditGenLogo } from "@/components/brand/auditgen-logo";
 
 export const dynamic = "force-static";
 
-export const metadata = {
-  title: "AuditGen — AI Sales OS for agencies",
-  description:
-    "Import leads, score them, generate evidence-backed audits, prep personalised outreach, track replies, and close. One loop. One workspace.",
+const aboutTitle = "AuditGen — AI Sales OS for agencies";
+const aboutDescription =
+  "Import leads, score them, generate evidence-backed audits, prep personalised outreach, track replies, and close. One loop. One workspace.";
+
+export const metadata: Metadata = {
+  title: aboutTitle,
+  description: aboutDescription,
+  openGraph: {
+    type: "website",
+    title: aboutTitle,
+    description: aboutDescription,
+    images: [
+      {
+        url: "/brand/auditgen-logo-horizontal.svg",
+        alt: "AuditGen logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: aboutTitle,
+    description: aboutDescription,
+    images: ["/brand/auditgen-logo-horizontal.svg"],
+  },
 };
 
 const PILLARS = [

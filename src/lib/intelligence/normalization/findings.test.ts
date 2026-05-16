@@ -38,7 +38,7 @@ const blankSignals: CollectedSignals = {
   hasAccessibilityLangAttr: false,
   hasImageAltTextHints: false,
   bodySize: 0,
-  performanceHint: "unknown",
+  performanceHint: "poor",
   findings: [],
 };
 
