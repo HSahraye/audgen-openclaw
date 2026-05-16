@@ -177,7 +177,7 @@ export default async function ClientAuditPage({
   ];
 
   return (
-    <main className="min-h-screen bg-[#f5f7f2] text-slate-950">
+    <main id="main" className="min-h-screen bg-[#f5f7f2] text-slate-950">
       <AuditViewTracker leadId={lead.id} />
       <section className="relative overflow-hidden bg-slate-950 px-5 py-8 text-white sm:px-8 lg:px-12">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_20%,rgba(190,242,100,0.24),transparent_30%),radial-gradient(circle_at_85%_10%,rgba(255,255,255,0.09),transparent_24%)]" />

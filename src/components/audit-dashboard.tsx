@@ -872,7 +872,7 @@ export function AuditDashboard({
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-screen-2xl grid-cols-1 items-start gap-4 px-3 py-6 sm:px-4 lg:px-6 xl:grid-cols-[320px_minmax(0,1fr)]">
+      <main id="main" className="mx-auto grid w-full max-w-screen-2xl grid-cols-1 items-start gap-4 px-3 py-6 sm:px-4 lg:px-6 xl:grid-cols-[320px_minmax(0,1fr)]">
         <section className="w-full xl:max-w-[320px] flex flex-col rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:self-start xl:overflow-y-auto">
           <div className="order-1 rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4">
             <div className="flex items-start justify-between gap-3">
