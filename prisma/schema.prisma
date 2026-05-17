@@ -1,5 +1,15 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // SECURITY/RELIABILITY: bundle both the local-development engine ("native")
+  // and the AWS Lambda runtime engine ("rhel-openssl-3.0.x") that Netlify
+  // production functions execute against. Without this, any deploy where
+  // `prisma generate` ran on a non-Lambda platform (notably macOS via
+  // `netlify deploy --build --prod` from a workstation) ships a Prisma
+  // client that crashes with `PrismaClientInitializationError: could not
+  // locate the Query Engine for runtime "rhel-openssl-3.0.x"` the first
+  // time any Prisma query fires inside a Netlify function — manifesting as
+  // a global error.tsx boundary on the audit form and dashboard.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {

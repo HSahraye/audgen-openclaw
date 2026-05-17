@@ -11,10 +11,18 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
+    // SAFETY NET: the real exception stack is already logged server-side by
+    // Next.js into the platform function logs and correlates with `digest`.
+    // We additionally emit through the in-app logger so that any client-side
+    // log forwarder picks it up, and we surface a console.error so that QA
+    // / DevTools sessions can see the digest immediately. The full
+    // error.message is never rendered to the end user.
     logger.error("app_error_boundary", {
       message: error.message,
       digest: error.digest,
     });
+    // eslint-disable-next-line no-console
+    console.error("[audgen:error-boundary]", { digest: error.digest, message: error.message });
   }, [error]);
 
   return (
@@ -31,6 +39,11 @@ export default function GlobalError({
         >
           Try again
         </button>
+        {error.digest ? (
+          <p className="mt-4 select-all text-[11px] font-mono text-slate-400">
+            Reference: {error.digest}
+          </p>
+        ) : null}
       </div>
     </main>
   );
