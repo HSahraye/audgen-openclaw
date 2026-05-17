@@ -133,3 +133,52 @@ describe("signOutFromIndicator", () => {
     expect(init?.method).toBe("POST");
   });
 });
+
+describe("AccountIndicator mount-path safety against /_global-error prerender", () => {
+  // Regression guard for the prerender failure that surfaced after the
+  // initial commit:
+  //
+  //   Error occurred prerendering page "/_global-error"
+  //   TypeError: Cannot read properties of null (reading 'useContext')
+  //
+  // Root cause: AccountIndicatorClient calls useRouter() / usePathname()
+  // from next/navigation, but Next.js's `/_global-error` prerender omits
+  // AppRouterContext.Provider, so the hooks crash on the missing
+  // dispatcher. Fix: an intermediate "use client" wrapper loads
+  // AccountIndicatorClient via `next/dynamic({ ssr: false })`, which
+  // defers every hook call to the browser.
+  //
+  // These static checks fail loudly if a later edit reintroduces a
+  // direct, server-rendered import of AccountIndicatorClient from the
+  // server-component layout boundary.
+
+  const SERVER_SOURCE = readFileSync(
+    path.resolve(__dirname, "account-indicator.tsx"),
+    "utf8",
+  );
+  const MOUNT_SOURCE = readFileSync(
+    path.resolve(__dirname, "account-indicator-client-mount.tsx"),
+    "utf8",
+  );
+
+  it("server component imports AccountIndicatorClientMount, NOT AccountIndicatorClient directly", () => {
+    expect(SERVER_SOURCE).toContain("AccountIndicatorClientMount");
+    expect(SERVER_SOURCE).toContain('from "./account-indicator-client-mount"');
+    // Direct import of the raw client module from the server boundary
+    // would defeat the dynamic+ssr:false guard.
+    expect(SERVER_SOURCE).not.toContain('from "./account-indicator-client"');
+  });
+
+  it("mount file is a 'use client' module that uses next/dynamic with ssr:false", () => {
+    const firstStmt = MOUNT_SOURCE.split("\n").find(
+      (line) => line.trim().length > 0 && !line.trim().startsWith("//"),
+    );
+    expect(firstStmt?.trim()).toMatch(/^["']use client["'];?$/);
+    expect(MOUNT_SOURCE).toContain('from "next/dynamic"');
+    expect(MOUNT_SOURCE).toMatch(/ssr:\s*false/);
+    // Loading fallback must be null so the server prerender output is
+    // empty (no DOM), which avoids hydration mismatches and prevents
+    // any hooks from running during the static prerender pass.
+    expect(MOUNT_SOURCE).toMatch(/loading:\s*\(\s*\)\s*=>\s*null/);
+  });
+});

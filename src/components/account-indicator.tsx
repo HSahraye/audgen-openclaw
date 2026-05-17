@@ -20,7 +20,13 @@
  *     + writes auth audit log.
  */
 import { getCurrentSession, listCurrentUserWorkspaces } from "@/lib/auth";
-import { AccountIndicatorClient } from "./account-indicator-client";
+// Indirected through a client-side `next/dynamic({ ssr: false })`
+// wrapper so the indicator's `useRouter` / `usePathname` hooks never
+// execute during the static prerender of `/_global-error`, where
+// AppRouterContext is absent and the hook would crash with
+// "Cannot read properties of null (reading 'useContext')".
+// See `account-indicator-client-mount.tsx` for the rationale.
+import { AccountIndicatorClientMount } from "./account-indicator-client-mount";
 
 export async function AccountIndicator() {
   // Cheap fail-closed: any auth subsystem failure → just render nothing.
@@ -44,7 +50,7 @@ export async function AccountIndicator() {
   const activeWorkspace = workspaces.find((w) => w.workspaceId === session.workspaceId);
 
   return (
-    <AccountIndicatorClient
+    <AccountIndicatorClientMount
       userEmail={session.email ?? null}
       userName={session.name ?? null}
       activeWorkspaceId={session.workspaceId}
