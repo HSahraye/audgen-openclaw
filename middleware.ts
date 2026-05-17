@@ -34,8 +34,29 @@ function redirectToLogin(request: NextRequest, pathname: string) {
   return NextResponse.redirect(loginUrl);
 }
 
+// SECURITY: static-asset / public-metadata paths that must always pass
+// through the middleware untouched. Crawler requests for /robots.txt and
+// /sitemap.xml were being intercepted and 502'd on production. None of these
+// paths overlap with the auth hard-gate list below, so the early bypass is
+// safe and does not weaken protection of /settings, /approvals, or
+// /automation/approvals.
+function isPublicStaticAsset(pathname: string) {
+  if (pathname === "/robots.txt") return true;
+  if (pathname === "/sitemap.xml") return true;
+  if (pathname === "/favicon.ico") return true;
+  if (pathname === "/icon.svg") return true;
+  if (pathname.startsWith("/_next/")) return true;
+  if (pathname.startsWith("/api/health")) return true;
+  if (/\.(?:txt|xml|ico|png|jpg|jpeg|svg|gif|webp|woff|woff2|ttf|otf|css|js|map|json)$/i.test(pathname)) {
+    return true;
+  }
+  return false;
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  if (isPublicStaticAsset(pathname)) return NextResponse.next();
 
   if (isProtectedHardGate(pathname)) {
     const betterAuthSession = getSessionCookie(request);
@@ -54,6 +75,14 @@ export function middleware(request: NextRequest) {
   return redirectToLogin(request, pathname);
 }
 
+// Matcher excludes static asset paths so the middleware function is never
+// invoked for crawler / public-metadata requests. The early bypass inside
+// the function body above is a belt-and-suspenders for edge cases where the
+// negative-lookahead matcher does not cleanly skip a path (some Netlify
+// edge runtimes evaluate /robots.txt against the regex differently than
+// node-server Next.js).
 export const config = {
-  matcher: ["/((?!_next/static|_next/image).*)"],
+  matcher: [
+    "/((?!api/health|_next/static|_next/image|favicon\\.ico|icon\\.svg|robots\\.txt|sitemap\\.xml|.*\\.(?:txt|xml|ico|png|jpg|jpeg|svg|gif|webp|woff|woff2|ttf|otf|css|js|map|json)).*)",
+  ],
 };
