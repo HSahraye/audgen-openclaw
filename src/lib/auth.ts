@@ -6,6 +6,12 @@ import { auth as betterAuth } from "@/lib/auth/better-auth";
 import { prisma } from "@/lib/prisma";
 import { getEnv, isAuthEnabled } from "./env";
 import { getWorkspaceContext, getWorkspaceContextForUser, listWorkspacesForUser } from "./workspace";
+import { logger } from "./logger";
+import {
+  classifySignupError,
+  validateSignupInput,
+  type SignupErrorCode,
+} from "./auth/signup-validation";
 
 export type AppRole = "owner" | "admin" | "member" | "sales" | "viewer";
 const SESSION_COOKIE = "pl_session";
@@ -200,6 +206,20 @@ async function writeAuthAudit(action: string, metadata?: Record<string, unknown>
   });
 }
 
+// Best-effort variant: never throws. Used inside catch blocks where we are
+// already returning a typed error to the caller and must not turn a single
+// failure into a double fault that ends up at the global error boundary.
+async function tryWriteAuthAudit(action: string, metadata?: Record<string, unknown>, userId?: string) {
+  try {
+    await writeAuthAudit(action, metadata, userId);
+  } catch (auditError) {
+    logger.error("auth_audit_write_failed", {
+      action,
+      reason: auditError instanceof Error ? auditError.message : "unknown",
+    });
+  }
+}
+
 const failedAttempts = new Map<string, { count: number; lockedUntil: number }>();
 
 export function getFailedAuthState(identifier: string) {
@@ -265,25 +285,59 @@ export async function signInWithEmailPassword(email: string, password: string) {
   }
 }
 
+export type SignUpResult =
+  | { ok: true; workspaceId: string }
+  | { ok: false; code: SignupErrorCode; error: string };
+
 export async function signUpWithEmailPassword(input: {
   email: string;
   password: string;
   name?: string;
   workspaceName?: string;
-}) {
-  const email = input.email.trim().toLowerCase();
+}): Promise<SignUpResult> {
+  // Pre-validate inputs BEFORE invoking better-auth so common cases
+  // (empty email, password too short, missing workspace name) return a
+  // typed error code that the UI can render specifically. This stops
+  // every signup failure from collapsing into a generic "Authentication
+  // failed" UI message.
+  const validation = validateSignupInput(input);
+  if (!validation.ok) {
+    logger.warn("auth_signup_rejected_validation", {
+      code: validation.code,
+      // email is included for support triage; logger.ts redacts secrets.
+      email: input.email,
+    });
+    await tryWriteAuthAudit("auth.signup.rejected", {
+      provider: "better-auth",
+      email: input.email,
+      code: validation.code,
+    });
+    return { ok: false, code: validation.code, error: validation.reason };
+  }
+
+  const { email, password, name, workspaceName } = validation.data;
+
   try {
     const signup = await betterAuth.api.signUpEmail({
-      body: {
-        email,
-        password: input.password,
-        name: input.name?.trim() || email.split("@")[0] || "User",
-      },
+      body: { email, password, name },
       headers: await headers(),
     });
     const userId = signup?.user?.id;
-    if (!userId) return { ok: false as const, error: "Sign up failed." };
-    const workspaceName = input.workspaceName?.trim() || `${signup.user.name || "My"} Workspace`;
+    if (!userId) {
+      // better-auth resolved without throwing but produced no user. Treat
+      // as a service-level failure rather than a silent ok:false.
+      logger.error("auth_signup_no_user_returned", { email });
+      await tryWriteAuthAudit("auth.signup.failed", {
+        provider: "better-auth",
+        email,
+        reason: "no_user_returned",
+      });
+      return {
+        ok: false,
+        code: "unknown",
+        error: "Sign up failed. Please retry.",
+      };
+    }
     const slug = await uniqueWorkspaceSlug(workspaceName);
     const workspace = await prisma.workspace.create({
       data: {
@@ -317,12 +371,37 @@ export async function signUpWithEmailPassword(input: {
       path: "/",
       maxAge: 60 * 60 * 24 * 30,
     });
-    await writeAuthAudit("auth.signup", { provider: "better-auth", email, workspaceId: workspace.id }, userId);
-    await writeAuthAudit("workspace.create", { workspaceId: workspace.id, source: "signup" }, userId);
-    return { ok: true as const, workspaceId: workspace.id };
+    await tryWriteAuthAudit(
+      "auth.signup",
+      { provider: "better-auth", email, workspaceId: workspace.id },
+      userId,
+    );
+    await tryWriteAuthAudit(
+      "workspace.create",
+      { workspaceId: workspace.id, source: "signup" },
+      userId,
+    );
+    return { ok: true, workspaceId: workspace.id };
   } catch (error) {
-    await writeAuthAudit("auth.signup.failed", { provider: "better-auth", email, reason: error instanceof Error ? error.message : "unknown" });
-    return { ok: false as const, error: "Sign up failed." };
+    const classified = classifySignupError(error);
+    // Log the actual exception server-side so a real diagnosis is
+    // possible from Netlify function logs. Previously this was buried
+    // inside an audit-log row that nobody reads in production.
+    logger.error("auth_signup_failed", {
+      email,
+      code: classified.code,
+      reason: classified.reason,
+      // Pass the original Error to logger so it scrubs and serialises
+      // name/message/stack consistently.
+      error: error instanceof Error ? error : new Error(String(error)),
+    });
+    await tryWriteAuthAudit("auth.signup.failed", {
+      provider: "better-auth",
+      email,
+      code: classified.code,
+      reason: classified.reason,
+    });
+    return { ok: false, code: classified.code, error: classified.reason };
   }
 }
 

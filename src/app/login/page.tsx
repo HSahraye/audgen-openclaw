@@ -9,11 +9,30 @@ import {
   registerFailedAuthAttempt,
   clearFailedAuthAttempts,
 } from "@/lib/auth";
+import {
+  SIGNUP_ERROR_CODES,
+  SIGNUP_ERROR_MESSAGES,
+  type SignupErrorCode,
+} from "@/lib/auth/signup-validation";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { BRAND } from "@/lib/brand";
 import { AuditGenLogo } from "@/components/brand/auditgen-logo";
 
 export const dynamic = "force-dynamic";
+
+const SIGNUP_ERROR_CODE_SET = new Set<string>(SIGNUP_ERROR_CODES);
+
+function resolveSignupMessage(rawError: string | undefined): string | null {
+  if (!rawError) return null;
+  const stripped = rawError.startsWith("signup-") ? rawError.slice("signup-".length) : rawError;
+  if (rawError === "invalid-signup" || stripped === "unknown") {
+    return SIGNUP_ERROR_MESSAGES.unknown;
+  }
+  if (SIGNUP_ERROR_CODE_SET.has(stripped)) {
+    return SIGNUP_ERROR_MESSAGES[stripped as SignupErrorCode];
+  }
+  return null;
+}
 
 async function loginAction(formData: FormData) {
   "use server";
@@ -31,7 +50,10 @@ async function loginAction(formData: FormData) {
       workspaceName,
     });
     if (!signUp.ok) {
-      redirect(`/login?next=${encodeURIComponent(next || "/")}&error=invalid-signup`);
+      const code = signUp.code ?? "unknown";
+      redirect(
+        `/login?mode=signup&next=${encodeURIComponent(next || "/")}&error=signup-${encodeURIComponent(code)}`,
+      );
     }
     redirect(next || "/");
   }
@@ -83,6 +105,7 @@ export default async function LoginPage({
   const params = await searchParams;
   const hasError = Boolean(params.error);
   const isSignup = params.mode === "signup";
+  const signupSpecificMessage = isSignup ? resolveSignupMessage(params.error) : null;
   return (
     <main className="min-h-screen bg-[#f5f7f2] p-6">
       <div className="mx-auto grid w-full max-w-5xl gap-8 py-6 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
@@ -128,6 +151,7 @@ export default async function LoginPage({
             name="email"
             type="email"
             autoComplete="email"
+            required={isSignup}
             className="h-11 rounded-2xl border border-slate-200 px-3 outline-none focus:border-[#10B981]"
           />
         </label>
@@ -137,8 +161,14 @@ export default async function LoginPage({
             name="password"
             type="password"
             required={isSignup}
+            minLength={isSignup ? 8 : undefined}
+            maxLength={isSignup ? 128 : undefined}
+            autoComplete={isSignup ? "new-password" : "current-password"}
             className="h-11 rounded-2xl border border-slate-200 px-3 outline-none focus:border-[#10B981]"
           />
+          {isSignup ? (
+            <span className="text-[11px] font-medium text-slate-500">At least 8 characters.</span>
+          ) : null}
         </label>
         <button className="h-11 rounded-2xl bg-[#0F172A] text-sm font-black text-white hover:bg-slate-800">
           {isSignup ? "Create workspace" : "Continue"}
@@ -148,7 +178,11 @@ export default async function LoginPage({
             Legacy fallback: leave email blank and enter a shared role password.
           </p>
         ) : null}
-        {hasError ? <p className="text-xs font-bold text-rose-600">Authentication failed. Check inputs and retry.</p> : null}
+        {hasError ? (
+          <p className="text-xs font-bold text-rose-600">
+            {signupSpecificMessage ?? "Authentication failed. Check inputs and retry."}
+          </p>
+        ) : null}
       </form>
       </div>
     </main>
