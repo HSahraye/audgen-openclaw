@@ -47,3 +47,9 @@ prisma/*.db-journal
 prisma/*.sqlite
 prisma/*.sqlite-journal
 
+
+# Local Netlify folder
+.netlify
+
+# Netlify CLI local artifact
+deno.lock
