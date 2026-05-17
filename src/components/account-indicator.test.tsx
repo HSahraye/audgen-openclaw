@@ -46,6 +46,13 @@ describe("AccountIndicatorClient template invariants (static)", () => {
     expect(CLIENT_SOURCE).toContain('aria-haspopup="menu"');
   });
 
+  it("hard-suppresses on /login + /accept-invite + /about so the pill never appears on auth-entry pages even when a synthetic admin session resolves (APP_AUTH_ENABLED unset in prod)", () => {
+    expect(CLIENT_SOURCE).toContain('"/login"');
+    expect(CLIENT_SOURCE).toContain('"/accept-invite"');
+    expect(CLIENT_SOURCE).toContain("usePathname");
+    expect(CLIENT_SOURCE).toContain("NEVER_RENDER_INDICATOR_PATHS");
+  });
+
   it("uses the existing switchWorkspaceAction (no new helper)", () => {
     expect(CLIENT_SOURCE).toContain('from "@/app/actions/workspace"');
     expect(CLIENT_SOURCE).toContain("switchWorkspaceAction");

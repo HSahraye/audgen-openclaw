@@ -1,8 +1,19 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { switchWorkspaceAction } from "@/app/actions/workspace";
+
+// Routes where the indicator MUST NOT render even if a session resolves.
+// Production runs with APP_AUTH_ENABLED unset/false, which causes the
+// server-side getCurrentSession() to return a synthetic admin session
+// for every request — so the parent server component cannot rely on
+// session presence alone to gate visibility on auth-entry pages.
+const NEVER_RENDER_INDICATOR_PATHS = new Set([
+  "/login",
+  "/accept-invite",
+  "/about",
+]);
 
 export type AccountIndicatorWorkspace = {
   workspaceId: string;
@@ -62,6 +73,7 @@ export function AccountIndicatorClient({
   workspaces,
 }: AccountIndicatorProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
@@ -118,6 +130,14 @@ export function AccountIndicatorClient({
       router.refresh();
     });
   };
+
+  // Suppress on auth-entry / unauthenticated marketing pages even if a
+  // synthetic session resolved server-side. Without this guard the pill
+  // would appear on /login when APP_AUTH_ENABLED is unset and the
+  // legacy auth fallback grants a virtual admin session.
+  if (pathname && NEVER_RENDER_INDICATOR_PATHS.has(pathname)) {
+    return null;
+  }
 
   const initials = avatarInitials(userName, userEmail);
   const displayName = userName?.trim() || userEmail || "Signed in";
