@@ -6,7 +6,7 @@ import { incrementUsageMetric } from "@/lib/billing/usage";
 import { logger } from "./logger";
 import { trackEvent } from "./events";
 import { markOnboardingMilestone } from "@/lib/onboarding";
-import { getWorkspaceContext, withWorkspaceFallbackScope } from "./workspace";
+import { strictWorkspaceScope } from "./workspace";
 import { generateUniqueAuditSlug } from "@/lib/audit-slugs";
 
 const DEFAULT_CHUNK_SIZE = 3;
@@ -73,7 +73,7 @@ async function processRow(row: CsvRow, index: number, workspaceId: string) {
 
   const candidates = await prisma.lead.findMany({
     where: {
-      ...withWorkspaceFallbackScope(workspaceId),
+      ...strictWorkspaceScope(workspaceId),
       OR: [
         websiteUrl ? { websiteUrl: { contains: websiteKey || websiteUrl } } : undefined,
         businessName && location ? { AND: [{ businessName: { equals: businessName } }, { location }] } : undefined,
@@ -168,9 +168,21 @@ function summarizeImportErrors(errors: string[]) {
 }
 
 export async function processImportJobChunk(jobId: string, chunkSize = DEFAULT_CHUNK_SIZE, workspaceIdInput?: string) {
-  const job = await prisma.importJob.findUnique({ where: { id: jobId } });
+  // SECURITY: when a caller provides workspaceIdInput (always true for the
+  // authenticated /api/import-jobs/[id]/run route), the lookup MUST be
+  // scoped so a session in workspace A cannot advance a job that lives in
+  // workspace B. The legacy unscoped `findUnique({ where: { id: jobId } })`
+  // permitted exactly that cross-tenant write. Without an explicit
+  // workspace, fall back to the unscoped lookup ONLY for trusted internal
+  // callers (background processors) — the only such caller in the tree
+  // today is the synchronous chained call inside the same server action
+  // that just created the job, which already passes workspaceIdInput.
+  const job = workspaceIdInput
+    ? await prisma.importJob.findFirst({ where: { id: jobId, ...strictWorkspaceScope(workspaceIdInput) } })
+    : await prisma.importJob.findUnique({ where: { id: jobId } });
   if (!job) return null;
-  const workspaceId = workspaceIdInput ?? job.workspaceId ?? (await getWorkspaceContext()).workspaceId;
+  const workspaceId = workspaceIdInput ?? job.workspaceId;
+  if (!workspaceId) return null;
   const workspaceState = await ensureWorkspaceOperational(workspaceId);
   if (!workspaceState.ok) {
     return prisma.importJob.update({
@@ -282,7 +294,7 @@ export async function processImportJobChunk(jobId: string, chunkSize = DEFAULT_C
 }
 
 export async function cancelImportJob(jobId: string, workspaceId?: string) {
-  const job = await prisma.importJob.findFirst({ where: workspaceId ? { id: jobId, ...withWorkspaceFallbackScope(workspaceId) } : { id: jobId } });
+  const job = await prisma.importJob.findFirst({ where: workspaceId ? { id: jobId, ...strictWorkspaceScope(workspaceId) } : { id: jobId } });
   if (!job) return null;
   return prisma.importJob.update({
     where: { id: job.id },
@@ -295,7 +307,7 @@ export async function cancelImportJob(jobId: string, workspaceId?: string) {
 }
 
 export async function retryImportJob(jobId: string, workspaceId?: string) {
-  const job = await prisma.importJob.findFirst({ where: workspaceId ? { id: jobId, ...withWorkspaceFallbackScope(workspaceId) } : { id: jobId } });
+  const job = await prisma.importJob.findFirst({ where: workspaceId ? { id: jobId, ...strictWorkspaceScope(workspaceId) } : { id: jobId } });
   if (!job) return null;
   if (job.attempts >= job.maxAttempts) {
     logger.warn("import_job_retry_limit_reached", { jobId, attempts: job.attempts, maxAttempts: job.maxAttempts });
@@ -314,7 +326,7 @@ export async function retryImportJob(jobId: string, workspaceId?: string) {
 
 export async function listRecentImportJobs(limit = 10, workspaceId?: string) {
   return prisma.importJob.findMany({
-    where: workspaceId ? withWorkspaceFallbackScope(workspaceId) : undefined,
+    where: workspaceId ? strictWorkspaceScope(workspaceId) : undefined,
     orderBy: { createdAt: "desc" },
     take: Math.max(1, Math.min(limit, 50)),
   });

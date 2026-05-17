@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getWorkspaceContext, withWorkspaceFallbackScope } from "@/lib/workspace";
+import { getWorkspaceContext, strictWorkspaceScope } from "@/lib/workspace";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -19,8 +19,13 @@ export async function OPTIONS(request: Request) {
 export async function GET(request: Request, { params }: Params) {
   const origin = request.headers.get("origin");
   const { id } = await params;
+  // PUBLIC route — no authenticated session. The import-job id IS the
+  // capability here (Prisma cuid, not enumerable). We retain a default-
+  // workspace partition (existing behaviour) but use strictWorkspaceScope
+  // so the leaky `withWorkspaceFallbackScope` is not the active pattern.
+  // A separate review will move this route to a per-job opaque token.
   const { workspaceId } = await getWorkspaceContext();
-  const job = await prisma.importJob.findFirst({ where: { id, ...withWorkspaceFallbackScope(workspaceId) } });
+  const job = await prisma.importJob.findFirst({ where: { id, ...strictWorkspaceScope(workspaceId) } });
   if (!job) return NextResponse.json({ ok: false, error: "Not found." }, { status: 404, headers: corsHeaders(origin) });
   return NextResponse.json(
     {

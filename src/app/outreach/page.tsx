@@ -1,20 +1,21 @@
 import { OutreachView } from "@/components/outreach-view";
-import { requireRole } from "@/lib/auth";
+import { requireSessionRole } from "@/lib/auth";
 import { buildPreferredAuditPath } from "@/lib/audit-links";
 import { prisma } from "@/lib/prisma";
 import { getPublicBaseUrl } from "@/lib/url";
-import { getWorkspaceContext, withWorkspaceFallbackScope } from "@/lib/workspace";
+import { strictWorkspaceScope } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
 export default async function OutreachPage() {
-  await requireRole(["admin", "sales", "viewer"]);
-  const { workspaceId } = await getWorkspaceContext();
+  // SECURITY: session-scoped workspaceId only. See SECURITY note on /leadgen.
+  const session = await requireSessionRole(["owner", "admin", "sales", "viewer", "member"]);
+  const workspaceId = session.workspaceId;
   const publicBaseUrl = getPublicBaseUrl();
   const now = new Date();
   const leads = await prisma.lead.findMany({
     where: {
-      ...withWorkspaceFallbackScope(workspaceId),
+      ...strictWorkspaceScope(workspaceId),
       OR: [
         { status: "New" },
         { status: "Follow-up" },
@@ -30,8 +31,8 @@ export default async function OutreachPage() {
     take: 100,
   });
 
-  const viewCounts = await prisma.viewLog.groupBy({ by: ["leadId"], where: withWorkspaceFallbackScope(workspaceId), _count: { leadId: true } });
-  const paymentCounts = await prisma.paymentLog.groupBy({ by: ["leadId"], where: withWorkspaceFallbackScope(workspaceId), _count: { leadId: true } });
+  const viewCounts = await prisma.viewLog.groupBy({ by: ["leadId"], where: strictWorkspaceScope(workspaceId), _count: { leadId: true } });
+  const paymentCounts = await prisma.paymentLog.groupBy({ by: ["leadId"], where: strictWorkspaceScope(workspaceId), _count: { leadId: true } });
   const viewCountByLead = new Map(viewCounts.map((item) => [item.leadId, item._count.leadId]));
   const paymentCountByLead = new Map(paymentCounts.map((item) => [item.leadId, item._count.leadId]));
 

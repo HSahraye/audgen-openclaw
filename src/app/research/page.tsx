@@ -1,15 +1,18 @@
 import { ResearchQueueDashboard } from "@/components/research-queue-dashboard";
-import { requireRole } from "@/lib/auth";
+import { requireSessionRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getWorkspaceContext, withWorkspaceFallbackScope } from "@/lib/workspace";
+import { strictWorkspaceScope } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
 export default async function ResearchPage() {
-  await requireRole(["admin", "sales", "viewer"]);
-  const { workspaceId } = await getWorkspaceContext();
+  // SECURITY: workspaceId must come from the session (membership-derived),
+  // not from getWorkspaceContext() which returns the platform-default
+  // workspace and pools every tenant's research queue into one bucket.
+  const session = await requireSessionRole(["owner", "admin", "sales", "viewer", "member"]);
+  const workspaceId = session.workspaceId;
   const items = await prisma.researchQueueItem.findMany({
-    where: withWorkspaceFallbackScope(workspaceId),
+    where: strictWorkspaceScope(workspaceId),
     orderBy: [{ priority: "asc" }, { updatedAt: "desc" }],
   });
 

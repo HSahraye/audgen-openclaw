@@ -168,4 +168,54 @@ describe("leadgen persistence helpers", () => {
     expect(results[0]?.businessName).toBe("Fallback Plumbing");
     expect(mocks.researchQueueItemFindMany).toHaveBeenCalledTimes(1);
   });
+
+  // CROSS-TENANT ISOLATION REGRESSION GUARD.
+  //
+  // Production P0 (verified by two-account test): User A's leadgen
+  // opportunities were visible in User B's session because every
+  // authenticated page sourced workspaceId from getWorkspaceContext()
+  // (always the platform default). The fix routes session.workspaceId
+  // through to listLeadgenOpportunities. This test locks the contract
+  // that this helper scopes its Prisma query strictly to the caller-
+  // provided workspaceId — so a query carrying workspace B's id MUST
+  // NOT see rows belonging to workspace A.
+  //
+  // We mock both the dedicated and legacy code paths because
+  // `hasDedicatedLeadgenTablesCache` in persistence.ts is module-scoped
+  // and may be `false` from a prior test in the suite.
+  it("strictly scopes the leadgen query to the caller's workspaceId (cross-tenant)", async () => {
+    // We don't need real rows — only need to capture the where clause
+    // each Prisma helper was invoked with. Both code paths return [] so
+    // the mappers are never invoked.
+    mocks.leadgenOpportunityCount.mockResolvedValue(0);
+    mocks.leadgenOpportunityFindMany.mockResolvedValue([]);
+    mocks.researchQueueItemFindMany.mockResolvedValue([]);
+
+    // Tenant A — must hit Prisma carrying ws_alpha.
+    const aResults = await listLeadgenOpportunities("ws_alpha");
+    expect(aResults).toEqual([]);
+
+    // Tenant B — same code path, different session.
+    const bResults = await listLeadgenOpportunities("ws_bravo");
+    expect(bResults).toEqual([]);
+
+    // Whichever code path ran, the where clause MUST carry the caller's
+    // workspaceId — never the platform default, never `OR: [..., null]`,
+    // never unscoped.
+    const allCalls = [
+      ...mocks.leadgenOpportunityFindMany.mock.calls,
+      ...mocks.researchQueueItemFindMany.mock.calls,
+    ];
+    expect(allCalls.length).toBeGreaterThanOrEqual(2);
+    const callsByTenant = { alpha: 0, bravo: 0 };
+    for (const [args] of allCalls) {
+      const where = (args as { where: Record<string, unknown> }).where;
+      expect("OR" in where).toBe(false);
+      expect(where.workspaceId).toBeTruthy();
+      if (where.workspaceId === "ws_alpha") callsByTenant.alpha += 1;
+      if (where.workspaceId === "ws_bravo") callsByTenant.bravo += 1;
+    }
+    expect(callsByTenant.alpha).toBeGreaterThanOrEqual(1);
+    expect(callsByTenant.bravo).toBeGreaterThanOrEqual(1);
+  });
 });

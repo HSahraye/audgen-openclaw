@@ -3,10 +3,10 @@ import { ArrowRight, Phone, Ghost, Eye, Clock, Target, TrendingUp } from "lucide
 import { BRAND } from "@/lib/brand";
 import { prisma } from "@/lib/prisma";
 import { estimatedDealValue, formatMoney, weightedDealValue } from "@/lib/money";
-import { requireRole } from "@/lib/auth";
+import { requireSessionRole } from "@/lib/auth";
 import { getCloseProbability, getLeadPriorityState } from "@/lib/intelligence/selectors";
 import { buildPrepPath } from "@/lib/prep-links";
-import { getWorkspaceContext, withWorkspaceFallbackScope } from "@/lib/workspace";
+import { strictWorkspaceScope } from "@/lib/workspace";
 import { buildPipelineDailyBrief } from "@/lib/pipeline/daily-brief";
 import { buildActionQueue } from "@/lib/pipeline/action-queue";
 import { ActionQueueCard } from "@/components/action-queue-card";
@@ -21,8 +21,9 @@ function greeting() {
 }
 
 export default async function BriefPage() {
-  await requireRole(["admin", "sales", "viewer"]);
-  const { workspaceId } = await getWorkspaceContext();
+  // SECURITY: session-scoped workspaceId only. See SECURITY note on /leadgen.
+  const session = await requireSessionRole(["owner", "admin", "sales", "viewer", "member"]);
+  const workspaceId = session.workspaceId;
 
   // Pipeline-state action queue. Non-fatal: if the helper throws, the
   // existing heuristic hit list still renders.
@@ -52,7 +53,7 @@ export default async function BriefPage() {
     // Calls due today
     prisma.lead.count({
       where: {
-        ...withWorkspaceFallbackScope(workspaceId),
+        ...strictWorkspaceScope(workspaceId),
         status: { notIn: ["Won", "Lost"] },
         OR: [
           { nextFollowUpAt: { lte: endOfToday } },
@@ -64,7 +65,7 @@ export default async function BriefPage() {
     // Ghost leads
     prisma.lead.count({
       where: {
-        ...withWorkspaceFallbackScope(workspaceId),
+        ...strictWorkspaceScope(workspaceId),
         status: { in: ["Contacted", "Follow-up"] },
         lastContactedAt: { lte: threeDaysAgo },
       },
@@ -72,7 +73,7 @@ export default async function BriefPage() {
     // Warm: viewed audit in last 24h
     prisma.lead.count({
       where: {
-        ...withWorkspaceFallbackScope(workspaceId),
+        ...strictWorkspaceScope(workspaceId),
         status: { notIn: ["Won", "Lost"] },
         viewLogs: { some: { createdAt: { gte: oneDayAgo } } },
       },
@@ -80,7 +81,7 @@ export default async function BriefPage() {
     // Awaiting: shared but viewed recently (48h)
     prisma.lead.count({
       where: {
-        ...withWorkspaceFallbackScope(workspaceId),
+        ...strictWorkspaceScope(workspaceId),
         status: { notIn: ["Won", "Lost"] },
         outreachLogs: { some: { type: { in: ["Share", "Email"] } } },
         viewLogs: { some: { createdAt: { gte: twoDaysAgo } } },
@@ -88,19 +89,19 @@ export default async function BriefPage() {
     }),
     // Won this month
     prisma.lead.findMany({
-      where: { ...withWorkspaceFallbackScope(workspaceId), status: "Won", updatedAt: { gte: startOfMonth } },
+      where: { ...strictWorkspaceScope(workspaceId), status: "Won", updatedAt: { gte: startOfMonth } },
       select: { packageName: true, customPrice: true },
     }),
     // Active pipeline
     prisma.lead.findMany({
-      where: { ...withWorkspaceFallbackScope(workspaceId), status: { notIn: ["Won", "Lost"] } },
+      where: { ...strictWorkspaceScope(workspaceId), status: { notIn: ["Won", "Lost"] } },
       select: { status: true, score: true, packageName: true, customPrice: true },
       orderBy: { score: "desc" },
       take: 5,
     }),
     // Top leads for the hit list
     prisma.lead.findMany({
-      where: { ...withWorkspaceFallbackScope(workspaceId), status: { notIn: ["Won", "Lost"] } },
+      where: { ...strictWorkspaceScope(workspaceId), status: { notIn: ["Won", "Lost"] } },
       select: {
         id: true,
         shortSlug: true,

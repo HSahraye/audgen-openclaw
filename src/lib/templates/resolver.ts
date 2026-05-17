@@ -12,7 +12,7 @@ import {
   type ResolvedTemplate,
   type TemplateKind,
 } from "@/lib/templates/types";
-import { withWorkspaceFallbackScope } from "@/lib/workspace";
+import { strictWorkspaceScope } from "@/lib/workspace";
 
 const CACHE_TTL_MS = 60_000;
 const templateCache = new Map<string, { expiresAt: number; value: ResolvedTemplate }>();
@@ -66,38 +66,38 @@ async function findTemplate(workspaceId: string, kind: TemplateKind, category?: 
   if (kind === "audit") {
     if (normalizedCategory) {
       const byCategory = await prisma.auditTemplate.findFirst({
-        where: { ...withWorkspaceFallbackScope(workspaceId), isActive: true, archived: false, category: normalizedCategory },
+        where: { ...strictWorkspaceScope(workspaceId), isActive: true, archived: false, category: normalizedCategory },
         orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
       });
       if (byCategory) return byCategory;
     }
     return prisma.auditTemplate.findFirst({
-      where: { ...withWorkspaceFallbackScope(workspaceId), isActive: true, archived: false, isDefault: true },
+      where: { ...strictWorkspaceScope(workspaceId), isActive: true, archived: false, isDefault: true },
       orderBy: { updatedAt: "desc" },
     });
   }
   if (kind === "outreach") {
     if (normalizedCategory) {
       const byCategory = await prisma.outreachTemplate.findFirst({
-        where: { ...withWorkspaceFallbackScope(workspaceId), isActive: true, archived: false, category: normalizedCategory },
+        where: { ...strictWorkspaceScope(workspaceId), isActive: true, archived: false, category: normalizedCategory },
         orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
       });
       if (byCategory) return byCategory;
     }
     return prisma.outreachTemplate.findFirst({
-      where: { ...withWorkspaceFallbackScope(workspaceId), isActive: true, archived: false, isDefault: true },
+      where: { ...strictWorkspaceScope(workspaceId), isActive: true, archived: false, isDefault: true },
       orderBy: { updatedAt: "desc" },
     });
   }
   if (normalizedCategory) {
     const byCategory = await prisma.offerTemplate.findFirst({
-      where: { ...withWorkspaceFallbackScope(workspaceId), isActive: true, archived: false, category: normalizedCategory },
+      where: { ...strictWorkspaceScope(workspaceId), isActive: true, archived: false, category: normalizedCategory },
       orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }],
     });
     if (byCategory) return byCategory;
   }
   return prisma.offerTemplate.findFirst({
-    where: { ...withWorkspaceFallbackScope(workspaceId), isActive: true, archived: false, isDefault: true },
+    where: { ...strictWorkspaceScope(workspaceId), isActive: true, archived: false, isDefault: true },
     orderBy: { updatedAt: "desc" },
   });
 }

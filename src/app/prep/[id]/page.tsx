@@ -14,9 +14,9 @@ import { generateFollowupRecommendation } from "@/lib/intelligence/followup/brai
 import { buildProposalIntelligence } from "@/lib/intelligence/proposals/engine";
 import { getLeadIntelligence, getPrimaryPainPoints, getRecommendedOffer } from "@/lib/intelligence/selectors";
 import { resolveTemplate } from "@/lib/templates";
-import { requireRole } from "@/lib/auth";
+import { requireSessionRole } from "@/lib/auth";
 import { buildPreferredAuditPath } from "@/lib/audit-links";
-import { getWorkspaceContext, withWorkspaceFallbackScope } from "@/lib/workspace";
+import { strictWorkspaceScope } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -35,8 +35,9 @@ const auditLabels: Array<[keyof AuditChecks, string]> = [
 ];
 
 export default async function MeetingPrepPage({ params }: { params: Promise<{ id: string }> }) {
-  await requireRole(["admin", "sales", "viewer"]);
-  const { workspaceId } = await getWorkspaceContext();
+  // SECURITY: session-scoped workspaceId only. See SECURITY note on /leadgen.
+  const session = await requireSessionRole(["owner", "admin", "sales", "viewer", "member"]);
+  const workspaceId = session.workspaceId;
   const { id } = await params;
   const leadInclude = {
     attachedCaseStudy: true,
@@ -53,13 +54,13 @@ export default async function MeetingPrepPage({ params }: { params: Promise<{ id
     },
   } as const;
   const leadById = await prisma.lead.findFirst({
-    where: { id, ...withWorkspaceFallbackScope(workspaceId) },
+    where: { id, ...strictWorkspaceScope(workspaceId) },
     include: leadInclude,
   });
   const lead = leadById
     ? leadById
     : await prisma.lead.findFirst({
-        where: { shortSlug: String(id || "").toLowerCase(), ...withWorkspaceFallbackScope(workspaceId) },
+        where: { shortSlug: String(id || "").toLowerCase(), ...strictWorkspaceScope(workspaceId) },
         include: leadInclude,
       });
   if (!lead) notFound();

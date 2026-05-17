@@ -17,7 +17,7 @@ vi.mock("@/lib/prisma", () => ({
 }));
 
 vi.mock("@/lib/workspace", () => ({
-  withWorkspaceFallbackScope: () => ({}),
+  strictWorkspaceScope: (workspaceId: string) => ({ workspaceId }),
 }));
 
 import { resolveTemplate } from "./resolver";

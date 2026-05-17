@@ -1,14 +1,15 @@
 import { prisma } from "@/lib/prisma";
 import { CallTodayDashboard } from "@/components/call-today-dashboard";
-import { requireRole } from "@/lib/auth";
+import { requireSessionRole } from "@/lib/auth";
 import { buildPreferredAuditPath } from "@/lib/audit-links";
-import { getWorkspaceContext, withWorkspaceFallbackScope } from "@/lib/workspace";
+import { strictWorkspaceScope } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
 export default async function CallTodayPage() {
-  await requireRole(["admin", "sales", "viewer"]);
-  const { workspaceId } = await getWorkspaceContext();
+  // SECURITY: session-scoped workspaceId only. See SECURITY note on /leadgen.
+  const session = await requireSessionRole(["owner", "admin", "sales", "viewer", "member"]);
+  const workspaceId = session.workspaceId;
   const now = new Date();
   // End of today (23:59:59) so we include everything due today
   const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
@@ -17,7 +18,7 @@ export default async function CallTodayPage() {
 
   const leads = await prisma.lead.findMany({
     where: {
-      ...withWorkspaceFallbackScope(workspaceId),
+      ...strictWorkspaceScope(workspaceId),
       status: { notIn: ["Won", "Lost"] },
       OR: [
         // Follow-up due today or overdue

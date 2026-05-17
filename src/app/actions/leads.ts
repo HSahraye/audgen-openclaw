@@ -16,14 +16,14 @@ import { processImportJobChunk } from "@/lib/import-jobs";
 import { trackProductAnalytics } from "@/lib/analytics/product";
 import { markOnboardingMilestone } from "@/lib/onboarding";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { requireSessionRole } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 import { trackSalesOsEvent } from "@/lib/analytics/events";
 import { writeAuditLog } from "@/lib/audit-log";
 import { trackEvent } from "@/lib/events";
 import { sendCrmWebhook } from "@/lib/crm";
 import { generateUniqueAuditSlug, normalizeAuditSlug } from "@/lib/audit-slugs";
-import { getWorkspaceContext, withWorkspaceFallbackScope } from "@/lib/workspace";
+import { strictWorkspaceScope } from "@/lib/workspace";
 import { leadFormSchema } from "@/app/actions/leads-schema";
 
 const leadStatuses = ["New", "Contacted", "Follow-up", "Won", "Lost"] as const;
@@ -77,8 +77,8 @@ function normalizeWebsiteKey(value?: string) {
 
 export async function createLeadAction(_prevState: unknown, formData: FormData) {
   try {
-    const actorRole = await requireRole(["admin", "sales"]);
-    const { workspaceId } = await getWorkspaceContext();
+    const session = await requireSessionRole(["owner", "admin", "sales", "member"]);
+    const { role: actorRole, workspaceId } = session;
     const workspaceState = await ensureWorkspaceOperational(workspaceId);
     if (!workspaceState.ok) return { ok: false, error: workspaceState.reason || "Workspace is not operational." };
     const entitlement = await enforceAuditGeneration(workspaceId);
@@ -165,18 +165,17 @@ export async function createLeadAction(_prevState: unknown, formData: FormData) 
 }
 
 export async function updateLeadStatusAction(id: string, status: string) {
-  const actorRole = await requireRole(["admin", "sales"]);
-  const { workspaceId } = await getWorkspaceContext();
+  const { role: actorRole, workspaceId } = await requireSessionRole(["owner", "admin", "sales", "member"]);
   const parsed = statusSchema.safeParse({ id, status });
   if (!parsed.success) return { ok: false, error: "Invalid lead status update." };
 
   await prisma.lead.updateMany({
-    where: { id: parsed.data.id, ...withWorkspaceFallbackScope(workspaceId) },
+    where: { id: parsed.data.id, ...strictWorkspaceScope(workspaceId) },
     data: { status: parsed.data.status },
   });
   const activeLeadCount = await prisma.lead.count({
     where: {
-      ...withWorkspaceFallbackScope(workspaceId),
+      ...strictWorkspaceScope(workspaceId),
       status: { notIn: ["Won", "Lost"] },
     },
   });
@@ -196,8 +195,7 @@ export async function updateLeadStatusAction(id: string, status: string) {
 }
 
 export async function updateLeadOfferAction(_prevState: unknown, formData: FormData) {
-  const actorRole = await requireRole(["admin", "sales"]);
-  const { workspaceId } = await getWorkspaceContext();
+  const { role: actorRole, workspaceId } = await requireSessionRole(["owner", "admin", "sales", "member"]);
   const parsed = offerSchema.safeParse({
     id: formData.get("id"),
     packageName: formData.get("packageName"),
@@ -208,7 +206,7 @@ export async function updateLeadOfferAction(_prevState: unknown, formData: FormD
   if (!parsed.success) return { ok: false, error: "Invalid offer update.", leadId: "" };
 
   const updateResult = await prisma.lead.updateMany({
-    where: { id: parsed.data.id, ...withWorkspaceFallbackScope(workspaceId) },
+    where: { id: parsed.data.id, ...strictWorkspaceScope(workspaceId) },
     data: {
       packageName: parsed.data.packageName,
       customPrice: parsed.data.customPrice && parsed.data.customPrice > 0 ? parsed.data.customPrice : null,
@@ -237,8 +235,7 @@ export async function updateLeadOfferAction(_prevState: unknown, formData: FormD
 }
 
 export async function updateLeadNotesAction(formData: FormData) {
-  const actorRole = await requireRole(["admin", "sales", "viewer"]);
-  const { workspaceId } = await getWorkspaceContext();
+  const { role: actorRole, workspaceId } = await requireSessionRole(["owner", "admin", "sales", "viewer", "member"]);
   const parsed = notesSchema.safeParse({
     id: formData.get("id"),
     notes: formData.get("notes"),
@@ -246,7 +243,7 @@ export async function updateLeadNotesAction(formData: FormData) {
   if (!parsed.success) return { ok: false, error: "Invalid notes update." };
 
   await prisma.lead.updateMany({
-    where: { id: parsed.data.id, ...withWorkspaceFallbackScope(workspaceId) },
+    where: { id: parsed.data.id, ...strictWorkspaceScope(workspaceId) },
     data: { notes: parsed.data.notes || null },
   });
 
@@ -257,8 +254,7 @@ export async function updateLeadNotesAction(formData: FormData) {
 }
 
 export async function logOutreachAction(id: string, type: "Email" | "Call" | "SMS" | "Share" | "Note", notes?: string, nextFollowUpAt?: string) {
-  const actorRole = await requireRole(["admin", "sales"]);
-  const { workspaceId } = await getWorkspaceContext();
+  const { role: actorRole, workspaceId } = await requireSessionRole(["owner", "admin", "sales", "member"]);
   const parsed = outreachSchema.safeParse({ id, type, notes, nextFollowUpAt });
   if (!parsed.success) return { ok: false, error: "Invalid outreach log." };
 
@@ -273,7 +269,7 @@ export async function logOutreachAction(id: string, type: "Email" | "Call" | "SM
       },
     }),
     prisma.lead.updateMany({
-      where: { id: parsed.data.id, ...withWorkspaceFallbackScope(workspaceId) },
+      where: { id: parsed.data.id, ...strictWorkspaceScope(workspaceId) },
       data: {
         status: parsed.data.type === "Note" ? undefined : "Contacted",
         lastContactedAt: parsed.data.type === "Note" ? undefined : new Date(),
@@ -306,8 +302,7 @@ export async function logOutreachAction(id: string, type: "Email" | "Call" | "SM
 }
 
 export async function regenerateLeadAction(id: string, notes?: string) {
-  const actorRole = await requireRole(["admin", "sales"]);
-  const { workspaceId } = await getWorkspaceContext();
+  const { role: actorRole, workspaceId } = await requireSessionRole(["owner", "admin", "sales", "member"]);
   const workspaceState = await ensureWorkspaceOperational(workspaceId);
   if (!workspaceState.ok) return { ok: false, error: workspaceState.reason };
   const entitlement = await enforceAuditGeneration(workspaceId);
@@ -318,7 +313,7 @@ export async function regenerateLeadAction(id: string, notes?: string) {
   const parsedNotes = z.string().max(4000).optional().safeParse(notes);
   if (!parsedNotes.success) return { ok: false, error: "Notes are too long." };
 
-  const lead = await prisma.lead.findFirst({ where: { id: parsed.data, ...withWorkspaceFallbackScope(workspaceId) } });
+  const lead = await prisma.lead.findFirst({ where: { id: parsed.data, ...strictWorkspaceScope(workspaceId) } });
   if (!lead) return { ok: false, error: "Lead not found." };
 
   const currentNotes = parsedNotes.data ?? lead.notes ?? undefined;
@@ -334,7 +329,7 @@ export async function regenerateLeadAction(id: string, notes?: string) {
   });
 
   await prisma.lead.updateMany({
-    where: { id: parsed.data, ...withWorkspaceFallbackScope(workspaceId) },
+    where: { id: parsed.data, ...strictWorkspaceScope(workspaceId) },
     data: {
       notes: currentNotes ?? null,
       score: audit.assets.leadScore,
@@ -369,8 +364,7 @@ export async function regenerateLeadAction(id: string, notes?: string) {
 }
 
 export async function importLeadsCsvAction(_prevState: unknown, formData: FormData) {
-  const actorRole = await requireRole(["admin", "sales"]);
-  const { workspaceId } = await getWorkspaceContext();
+  const { role: actorRole, workspaceId } = await requireSessionRole(["owner", "admin", "sales", "member"]);
   const workspaceState = await ensureWorkspaceOperational(workspaceId);
   if (!workspaceState.ok) return { ok: false, imported: 0, skipped: 0, failed: 0, duplicateCount: 0, invalidCount: 0, limitSkipped: 0, queued: false, jobId: "", error: workspaceState.reason };
   const pastedCsv = String(formData.get("csvText") ?? "");
@@ -489,7 +483,7 @@ export async function importLeadsCsvAction(_prevState: unknown, formData: FormDa
 
     const candidates = await prisma.lead.findMany({
       where: {
-        ...withWorkspaceFallbackScope(workspaceId),
+        ...strictWorkspaceScope(workspaceId),
         OR: [
           websiteUrl ? { websiteUrl: { contains: websiteKey || websiteUrl } } : undefined,
           businessName && location ? { AND: [{ businessName: { equals: businessName } }, { location }] } : undefined,
@@ -558,15 +552,14 @@ export async function importLeadsCsvAction(_prevState: unknown, formData: FormDa
 }
 
 export async function deleteLeadAction(id: string) {
-  const actorRole = await requireRole(["admin"]);
-  const { workspaceId } = await getWorkspaceContext();
+  const { role: actorRole, workspaceId } = await requireSessionRole(["owner", "admin"]);
   const parsed = z.string().min(1).safeParse(id);
   if (!parsed.success) return { ok: false, error: "Invalid lead id." };
 
-  await prisma.lead.deleteMany({ where: { id: parsed.data, ...withWorkspaceFallbackScope(workspaceId) } });
+  await prisma.lead.deleteMany({ where: { id: parsed.data, ...strictWorkspaceScope(workspaceId) } });
   const activeLeads = await prisma.lead.count({
     where: {
-      ...withWorkspaceFallbackScope(workspaceId),
+      ...strictWorkspaceScope(workspaceId),
       status: { notIn: ["Won", "Lost"] },
     },
   });
@@ -577,8 +570,7 @@ export async function deleteLeadAction(id: string) {
 }
 
 export async function updateLeadShortSlugAction(_prevState: unknown, formData: FormData) {
-  const actorRole = await requireRole(["admin", "sales"]);
-  const { workspaceId } = await getWorkspaceContext();
+  const { role: actorRole, workspaceId } = await requireSessionRole(["owner", "admin", "sales", "member"]);
   const parsed = shortSlugSchema.safeParse({
     id: formData.get("id"),
     shortSlug: normalizeAuditSlug(String(formData.get("shortSlug") ?? "")),
@@ -592,7 +584,7 @@ export async function updateLeadShortSlugAction(_prevState: unknown, formData: F
     await prisma.lead.updateMany({
       where: {
         id: parsed.data.id,
-        ...withWorkspaceFallbackScope(workspaceId),
+        ...strictWorkspaceScope(workspaceId),
       },
       data: { shortSlug: parsed.data.shortSlug },
     });

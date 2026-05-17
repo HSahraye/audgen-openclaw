@@ -3,9 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/auth";
+import { requireSessionRole } from "@/lib/auth";
 import { writeAuditLog } from "@/lib/audit-log";
-import { getWorkspaceContext } from "@/lib/workspace";
 
 const caseStudySchema = z.object({
   title: z.string().min(1).max(160),
@@ -16,8 +15,7 @@ const caseStudySchema = z.object({
 });
 
 export async function createCaseStudyAction(_prevState: unknown, formData: FormData) {
-  const actorRole = await requireRole(["admin", "sales"]);
-  const { workspaceId } = await getWorkspaceContext();
+  const { role: actorRole, workspaceId } = await requireSessionRole(["owner", "admin", "sales", "member"]);
   const parsed = caseStudySchema.safeParse({
     title: formData.get("title"),
     result: formData.get("result"),

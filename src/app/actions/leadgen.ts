@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireRole } from "@/lib/auth";
+import { requireSessionRole } from "@/lib/auth";
 import { enforceAuditGeneration } from "@/lib/billing/entitlements";
 import { BRANDING_CONFIG } from "@/config/branding";
 import { shouldShowDemoBanner } from "@/lib/demo-mode";
@@ -22,7 +22,7 @@ import {
 import { discoverLeadgenOpportunities } from "@/lib/leadgen/sources";
 import type { LeadOpportunity, LeadOpportunityFilters, LeadOpportunityWorkflowStatus } from "@/lib/leadgen/types";
 import { prisma } from "@/lib/prisma";
-import { getWorkspaceContext, strictWorkspaceScope } from "@/lib/workspace";
+import { strictWorkspaceScope } from "@/lib/workspace";
 
 const savedViewSchema = z.object({
   name: z.string().min(2).max(80),
@@ -174,8 +174,8 @@ async function resolveLeadgenQueueDispatchCandidates(
 export async function addSelectedLeadgenToAudgenAction(
   opportunities: LeadOpportunity[],
 ) {
-  await requireRole(["admin", "sales"]);
-  const { workspaceId } = await getWorkspaceContext();
+  // SECURITY: session-derived workspaceId. See SECURITY note on /leadgen page.
+  const { workspaceId } = await requireSessionRole(["owner", "admin", "sales", "member"]);
   await saveLeadgenOpportunities(
     workspaceId,
     opportunities.map((lead) => ({ ...lead, status: "queued", lastActionAt: new Date().toISOString() })),
@@ -200,16 +200,14 @@ export async function addSelectedLeadgenToAudgenAction(
 }
 
 export async function persistLeadgenOpportunitiesAction(opportunities: LeadOpportunity[]) {
-  await requireRole(["admin", "sales", "viewer"]);
-  const { workspaceId } = await getWorkspaceContext();
+  const { workspaceId } = await requireSessionRole(["owner", "admin", "sales", "viewer", "member"]);
   await saveLeadgenOpportunities(workspaceId, opportunities);
   revalidatePath("/leadgen");
   return { ok: true, count: opportunities.length };
 }
 
 export async function saveLeadgenViewAction(name: string, filters: LeadOpportunityFilters) {
-  await requireRole(["admin", "sales", "viewer"]);
-  const { workspaceId } = await getWorkspaceContext();
+  const { workspaceId } = await requireSessionRole(["owner", "admin", "sales", "viewer", "member"]);
   const parsed = savedViewSchema.safeParse({ name, filters });
   if (!parsed.success) return { ok: false, error: "Invalid saved view." };
   await createLeadgenSavedView(workspaceId, parsed.data.name, parsed.data.filters);
@@ -218,8 +216,7 @@ export async function saveLeadgenViewAction(name: string, filters: LeadOpportuni
 }
 
 export async function deleteLeadgenViewAction(viewId: string) {
-  await requireRole(["admin", "sales", "viewer"]);
-  const { workspaceId } = await getWorkspaceContext();
+  const { workspaceId } = await requireSessionRole(["owner", "admin", "sales", "viewer", "member"]);
   await deleteLeadgenSavedView(workspaceId, viewId);
   revalidatePath("/leadgen");
   return { ok: true };
@@ -230,8 +227,7 @@ export async function bulkUpdateLeadgenStatusAction(input: {
   nextStatus: LeadOpportunityWorkflowStatus;
   note?: string;
 }) {
-  await requireRole(["admin", "sales", "viewer"]);
-  const { workspaceId } = await getWorkspaceContext();
+  const { workspaceId } = await requireSessionRole(["owner", "admin", "sales", "viewer", "member"]);
   const parsed = bulkStatusSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Invalid bulk status payload." };
   const updated = await bulkUpdateLeadgenStatus(
@@ -245,8 +241,7 @@ export async function bulkUpdateLeadgenStatusAction(input: {
 }
 
 export async function addLeadgenActivityNoteAction(opportunityId: string, note: string) {
-  await requireRole(["admin", "sales", "viewer"]);
-  const { workspaceId } = await getWorkspaceContext();
+  const { workspaceId } = await requireSessionRole(["owner", "admin", "sales", "viewer", "member"]);
   if (!note.trim()) return { ok: false, error: "Note cannot be empty." };
   await createLeadgenActivity(workspaceId, opportunityId, "note_added", note.trim());
   revalidatePath("/leadgen");
@@ -254,8 +249,7 @@ export async function addLeadgenActivityNoteAction(opportunityId: string, note: 
 }
 
 export async function markLeadgenExportedAction(opportunityIds: string[]) {
-  await requireRole(["admin", "sales", "viewer"]);
-  const { workspaceId } = await getWorkspaceContext();
+  const { workspaceId } = await requireSessionRole(["owner", "admin", "sales", "viewer", "member"]);
   const updated = await bulkUpdateLeadgenStatus(workspaceId, opportunityIds, "exported", "Marked as exported.");
   for (const id of opportunityIds) {
     await createLeadgenActivity(workspaceId, id, "exported_csv", "Exported from LeadGen command center.");
@@ -265,7 +259,8 @@ export async function markLeadgenExportedAction(opportunityIds: string[]) {
 }
 
 export async function discoverLeadgenOpportunitiesAction(query: string) {
-  await requireRole(["admin", "sales", "viewer"]);
+  // Auth-gate only — discovery itself is workspace-agnostic (no DB write).
+  await requireSessionRole(["owner", "admin", "sales", "viewer", "member"]);
   const parsed = discoveryQuerySchema.safeParse({ query });
   if (!parsed.success) return { ok: false as const, error: "Add a city and category to run discovery." };
   const discovered = await discoverLeadgenOpportunities(parsed.data.query);
@@ -279,8 +274,7 @@ export async function discoverLeadgenOpportunitiesAction(query: string) {
 }
 
 export async function getLeadgenAuditPreflightAction(opportunityIds: string[]) {
-  await requireRole(["admin", "sales", "viewer"]);
-  const { workspaceId } = await getWorkspaceContext();
+  const { workspaceId } = await requireSessionRole(["owner", "admin", "sales", "viewer", "member"]);
   const normalizedIds = normalizeSelectedOpportunityIds(opportunityIds);
   const entitlement = await enforceAuditGeneration(workspaceId);
   const monthlyCredits = await getWorkspaceMonthlyCreditAllocation(workspaceId);
@@ -303,8 +297,7 @@ export async function getLeadgenAuditPreflightAction(opportunityIds: string[]) {
 }
 
 export async function queueLeadgenAuditGenerationAction(opportunityIds: string[]) {
-  await requireRole(["admin", "sales", "viewer"]);
-  const { workspaceId, workspaceSlug } = await getWorkspaceContext();
+  const { workspaceId, workspaceSlug } = await requireSessionRole(["owner", "admin", "sales", "viewer", "member"]);
   const normalizedIds = normalizeSelectedOpportunityIds(opportunityIds);
   const useDemoPath = shouldShowDemoBanner({ workspaceSlug });
   const entitlement = await enforceAuditGeneration(workspaceId);

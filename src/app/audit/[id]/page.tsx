@@ -14,7 +14,6 @@ import { getCloseProbability, getLeadScores, getLeadStrengths, getPrimaryPainPoi
 import { resolveTemplate } from "@/lib/templates";
 import { verifyAuditAccessToken } from "@/lib/audit-links";
 import { isAuthEnabled } from "@/lib/env";
-import { getWorkspaceContext, withWorkspaceFallbackScope } from "@/lib/workspace";
 
 const labels: Array<[keyof AuditChecks, string, string]> = [
   ["hasWebsite", "Website presence", "A real website customers can trust"],
@@ -64,17 +63,27 @@ export default async function ClientAuditPage({
   searchParams: Promise<{ token?: string }>;
 }) {
   const { id } = await params;
-  const { workspaceId } = await getWorkspaceContext();
   const query = await searchParams;
   const token = query.token ? String(query.token) : "";
+  // SECURITY: this route is publicly accessible (no auth gate). The HMAC-
+  // signed `token` (bound to the lead id, see verifyAuditAccessToken) IS
+  // the security boundary, NOT workspace scoping. The lead lookup must
+  // therefore be by id alone — adding a workspaceId filter here would
+  // either silently break audit-share links for non-default tenants, or
+  // (with a stale workspace id) leak lookup behaviour across tenants.
+  // Branding and template resolution use the LEAD's own workspaceId
+  // (guaranteed to be the lead's owning tenant after lookup), not the
+  // visitor's session.
   if (isAuthEnabled() && !verifyAuditAccessToken(token, id)) {
     notFound();
   }
-  const lead = await prisma.lead.findFirst({ where: { id, ...withWorkspaceFallbackScope(workspaceId) }, include: { attachedCaseStudy: true } });
+  const lead = await prisma.lead.findUnique({ where: { id }, include: { attachedCaseStudy: true } });
   if (!lead) notFound();
-  const brandingWorkspaceId = lead.workspaceId || workspaceId;
-  const workspaceSettings = await prisma.workspaceSettings.findUnique({ where: { workspaceId: brandingWorkspaceId } });
-  const template = await resolveTemplate(workspaceId, "audit", lead.category);
+  const brandingWorkspaceId = lead.workspaceId;
+  const workspaceSettings = brandingWorkspaceId
+    ? await prisma.workspaceSettings.findUnique({ where: { workspaceId: brandingWorkspaceId } })
+    : null;
+  const template = await resolveTemplate(brandingWorkspaceId ?? "", "audit", lead.category);
 
   const audit = JSON.parse(lead.auditJson) as { checks: AuditChecks; websiteSignals: string[]; warnings: string[]; source: string };
   const assets = JSON.parse(lead.assetsJson) as GeneratedAssets;

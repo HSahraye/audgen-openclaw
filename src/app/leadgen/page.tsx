@@ -1,18 +1,22 @@
 import { LeadGenCommandCenter } from "@/components/leadgen-command-center";
-import { requireRole } from "@/lib/auth";
+import { requireSessionRole } from "@/lib/auth";
 import { buildConnectorDiagnostics } from "@/lib/leadgen/diagnostics";
 import {
   listLeadgenActivities,
   listLeadgenOpportunities,
   listLeadgenSavedViews,
 } from "@/lib/leadgen/persistence";
-import { getWorkspaceContext } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
 export default async function LeadgenPage() {
-  await requireRole(["owner", "admin", "sales", "viewer", "member"]);
-  const { workspaceId } = await getWorkspaceContext();
+  // SECURITY: source workspaceId from the authenticated session, NOT from
+  // getWorkspaceContext() (which returns the platform default workspace
+  // and previously caused every authenticated user to read the same pool
+  // of LeadGen opportunities — see the multi-surface cross-tenant leak
+  // verified across /leadgen, /research, /outreach by two-account test).
+  const session = await requireSessionRole(["owner", "admin", "sales", "viewer", "member"]);
+  const workspaceId = session.workspaceId;
   const [opportunities, savedViews, activities] = await Promise.all([
     listLeadgenOpportunities(workspaceId),
     listLeadgenSavedViews(workspaceId),
