@@ -24,31 +24,10 @@ import { trackEvent } from "@/lib/events";
 import { sendCrmWebhook } from "@/lib/crm";
 import { generateUniqueAuditSlug, normalizeAuditSlug } from "@/lib/audit-slugs";
 import { getWorkspaceContext, withWorkspaceFallbackScope } from "@/lib/workspace";
+import { leadFormSchema } from "@/app/actions/leads-schema";
 
 const leadStatuses = ["New", "Contacted", "Follow-up", "Won", "Lost"] as const;
 const MAX_SYNC_AUDIT_ROWS_PER_IMPORT = 50;
-
-// SECURITY/UX: FormData.get() returns string | File | null. Bare
-// z.string().optional() rejects null with "Invalid input: expected string,
-// received null" and crashes the audit form when optional inputs are blank.
-// optionalString() coerces null/undefined to "" so optional means optional.
-const optionalString = (max?: number) => {
-  let inner = z.string();
-  if (typeof max === "number") inner = inner.max(max);
-  return z.preprocess((value) => (value == null ? "" : value), inner.optional());
-};
-
-export const leadFormSchema = z.object({
-  businessName: z.string().min(1, "Business name is required."),
-  ownerName: optionalString(),
-  category: optionalString(),
-  location: optionalString(),
-  websiteUrl: optionalString(),
-  googleProfileUrl: optionalString(),
-  phone: optionalString(),
-  email: optionalString(),
-  notes: optionalString(),
-});
 
 const formSchema = leadFormSchema;
 

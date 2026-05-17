@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { leadFormSchema } from "@/app/actions/leads";
+import { leadFormSchema } from "@/app/actions/leads-schema";
 
 // SECURITY/UX regression: FormData.get() returns null for missing fields.
 // Bare z.string().optional() rejects null with

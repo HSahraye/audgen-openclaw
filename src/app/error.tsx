@@ -11,18 +11,32 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    // SAFETY NET: the real exception stack is already logged server-side by
-    // Next.js into the platform function logs and correlates with `digest`.
-    // We additionally emit through the in-app logger so that any client-side
-    // log forwarder picks it up, and we surface a console.error so that QA
-    // / DevTools sessions can see the digest immediately. The full
-    // error.message is never rendered to the end user.
+    // SAFETY NET. By Next.js construction `app/error.tsx` MUST be a client
+    // component, so this useEffect runs in the browser, not on the server.
+    // The real server-side stack trace is captured automatically by Next.js
+    // and emitted into the platform function logs alongside the same
+    // `digest`. We saw exactly that during the 7d33cee P0:
+    //
+    //   ⨯ Error: A "use server" file can only export async functions, found object.
+    //   ...
+    //   digest: '1198092769@E352'
+    //
+    // Callers correlate the production reference shown to the user with
+    // that digest. We also emit a structured client log here so any
+    // browser-side forwarder (PostHog / Sentry / etc.) picks it up. We
+    // intentionally do NOT render the stack to the end user.
     logger.error("app_error_boundary", {
       message: error.message,
       digest: error.digest,
+      url: typeof window !== "undefined" ? window.location.pathname + window.location.search : undefined,
+      ts: new Date().toISOString(),
     });
     // eslint-disable-next-line no-console
-    console.error("[audgen:error-boundary]", { digest: error.digest, message: error.message });
+    console.error("[audgen:error-boundary]", {
+      digest: error.digest,
+      message: error.message,
+      url: typeof window !== "undefined" ? window.location.pathname + window.location.search : undefined,
+    });
   }, [error]);
 
   return (
