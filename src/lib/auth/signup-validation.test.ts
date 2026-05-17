@@ -101,6 +101,27 @@ describe("classifySignupError", () => {
     }
   });
 
+  // REGRESSION GUARD against the original over-broad `"already exists"`
+  // substring match. Prisma P2002 unique-constraint failures on tables
+  // OTHER than User (workspace slug, membership composite, account
+  // providerAccountId) can include the bare phrase "already exists" in
+  // adapter-wrapped messages. Those are NOT duplicate-email problems
+  // and must NOT be reported to the user as "An account with this email
+  // already exists." Otherwise a workspace-slug collision at signup
+  // would tell users an account they have never created already exists.
+  it("does NOT misclassify non-user 'already exists' errors as email-in-use", () => {
+    const nonEmailDuplicates = [
+      new Error("Workspace with this slug already exists"),
+      new Error("Membership for this user/workspace pair already exists"),
+      new Error("Account already exists for provider"),
+      new Error("Unique constraint failed on the fields: (`slug`)"),
+    ];
+    for (const err of nonEmailDuplicates) {
+      const result = classifySignupError(err);
+      expect(result.code, err.message).not.toBe("email-in-use");
+    }
+  });
+
   it("maps password-too-short style errors to password-too-short", () => {
     const result = classifySignupError(new Error("Password must be at least 8 characters (min)"));
     expect(result.code).toBe("password-too-short");

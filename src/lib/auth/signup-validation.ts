@@ -79,8 +79,17 @@ export function classifySignupError(error: unknown): { code: SignupErrorCode; re
   const message = error instanceof Error ? error.message : "";
   const lowered = message.toLowerCase();
 
-  // better-auth uses these substrings on validation failures.
-  if (lowered.includes("user_already_exists") || lowered.includes("already exists") || lowered.includes("user with this email")) {
+  // better-auth uses these substrings on duplicate-email failures.
+  // We deliberately do NOT match the bare phrase "already exists" because
+  // Prisma's adapter-wrapped P2002 messages on OTHER tables (workspace
+  // slug collision, membership composite, Account.providerAccountId)
+  // can contain that exact substring and would be misclassified as a
+  // duplicate-email problem the user could never debug from the UI.
+  if (
+    lowered.includes("user_already_exists") ||
+    lowered.includes("user already exists") ||
+    lowered.includes("user with this email")
+  ) {
     return { code: "email-in-use", reason: "An account with this email already exists." };
   }
   if (lowered.includes("invalid_email") || lowered.includes("invalid email")) {
