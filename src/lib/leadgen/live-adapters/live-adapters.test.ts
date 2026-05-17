@@ -219,6 +219,7 @@ describe("live connector adapters", () => {
     const adapter = new GooglePlacesAdapter();
     const result = await adapter.fetchLeads({ city: "San Jose", category: "Dentists", limit: 1 });
     expect(result.status).toBe("PROVIDER_ERROR");
+    expect(result.leads.length).toBeGreaterThan(0);
     expect(result.providerError).toEqual({
       error: "PROVIDER_ERROR",
       message: "Live lookup failed or quota exceeded. Falling back to sandbox simulation.",
@@ -239,6 +240,7 @@ describe("live connector adapters", () => {
     const adapter = new YelpAPIAdapter();
     const result = await adapter.fetchLeads({ city: "San Jose", category: "Dentists", limit: 1 });
     expect(result.status).toBe("PROVIDER_ERROR");
+    expect(result.leads.length).toBeGreaterThan(0);
     expect(result.providerError).toEqual({
       error: "PROVIDER_ERROR",
       message: "Live lookup failed or quota exceeded. Falling back to sandbox simulation.",

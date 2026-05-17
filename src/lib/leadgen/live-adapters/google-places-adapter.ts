@@ -143,9 +143,10 @@ export class GooglePlacesAdapter {
         }),
       });
       if (!searchRes.ok) {
+        const fallbackLeads = generateSandboxLeads("google_places", query);
         return {
           status: "PROVIDER_ERROR",
-          leads: [],
+          leads: fallbackLeads.slice(0, MAX_LIVE_SEARCH_RESULTS),
           blocked: false,
           message: `Google Places search failed with status ${searchRes.status}.`,
           providerError: {
@@ -166,9 +167,10 @@ export class GooglePlacesAdapter {
         message: `Google Places returned ${mapped.length} mapped leads.`,
       };
     } catch {
+      const fallbackLeads = generateSandboxLeads("google_places", query);
       return {
         status: "PROVIDER_ERROR",
-        leads: [],
+        leads: fallbackLeads.slice(0, MAX_LIVE_SEARCH_RESULTS),
         blocked: false,
         message: "Google Places request failed due to provider/network error.",
         providerError: {

@@ -19,6 +19,16 @@ function shouldRunLiveLookups() {
   return isLiveConnectorEnabled() && !isSandboxMode();
 }
 
+function normalizeYelpCategoryAlias(input?: string) {
+  const normalized = (input ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_,]/g, "");
+  if (!normalized) return "localservices";
+  return /^[a-z0-9_,]+$/.test(normalized) ? normalized : "localservices";
+}
+
 type YelpBusiness = {
   id?: string;
   name?: string;
@@ -121,10 +131,12 @@ export class YelpAPIAdapter {
     const liveLimit = Math.max(1, Math.min(MAX_LIVE_SEARCH_RESULTS, requestedLimit));
     const searchUrl = new URL("https://api.yelp.com/v3/businesses/search");
     searchUrl.searchParams.set("location", query.city?.trim() || "San Jose, CA");
-    searchUrl.searchParams.set("categories", (query.category || "").trim() || "localservices");
+    searchUrl.searchParams.set("categories", normalizeYelpCategoryAlias(query.category));
     searchUrl.searchParams.set("limit", String(liveLimit));
     if (query.textQuery?.trim()) {
       searchUrl.searchParams.set("term", query.textQuery.trim());
+    } else if (query.category?.trim()) {
+      searchUrl.searchParams.set("term", query.category.trim());
     }
 
     try {
@@ -136,9 +148,10 @@ export class YelpAPIAdapter {
         },
       });
       if (!response.ok) {
+        const fallbackLeads = generateSandboxLeads("yelp_fusion", query);
         return {
           status: "PROVIDER_ERROR",
-          leads: [],
+          leads: fallbackLeads.slice(0, MAX_LIVE_SEARCH_RESULTS),
           blocked: false,
           message: `Yelp search failed with status ${response.status}.`,
           providerError: {
@@ -159,9 +172,10 @@ export class YelpAPIAdapter {
         message: `Yelp returned ${mapped.length} mapped leads.`,
       };
     } catch {
+      const fallbackLeads = generateSandboxLeads("yelp_fusion", query);
       return {
         status: "PROVIDER_ERROR",
-        leads: [],
+        leads: fallbackLeads.slice(0, MAX_LIVE_SEARCH_RESULTS),
         blocked: false,
         message: "Yelp request failed due to provider/network error.",
         providerError: {
