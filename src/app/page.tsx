@@ -6,7 +6,7 @@ import { resolvePublicSenderName } from "@/lib/branding";
 import { prisma } from "@/lib/prisma";
 import { getPublicBaseUrl } from "@/lib/url";
 import { getPipelineMetrics } from "@/lib/pipeline/counters";
-import { withWorkspaceFallbackScope } from "@/lib/workspace";
+import { strictWorkspaceScope } from "@/lib/workspace";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,7 @@ export default async function Home() {
   last24Hours.setHours(last24Hours.getHours() - 24);
 
   const leads = await prisma.lead.findMany({
-    where: withWorkspaceFallbackScope(workspaceId),
+    where: strictWorkspaceScope(workspaceId),
     orderBy: [{ score: "desc" }, { createdAt: "desc" }],
     include: {
       outreachLogs: { orderBy: { createdAt: "desc" }, take: 10 },
@@ -41,35 +41,35 @@ export default async function Home() {
 
   const viewCounts = await prisma.viewLog.groupBy({
     by: ["leadId"],
-    where: withWorkspaceFallbackScope(workspaceId),
+    where: strictWorkspaceScope(workspaceId),
     _count: { leadId: true },
   });
   const todayOutreach = await prisma.outreachLog.groupBy({
     by: ["type"],
-    where: { ...withWorkspaceFallbackScope(workspaceId), createdAt: { gte: startOfToday } },
+    where: { ...strictWorkspaceScope(workspaceId), createdAt: { gte: startOfToday } },
     _count: { type: true },
   });
   const viewCountByLead = new Map(viewCounts.map((item) => [item.leadId, item._count.leadId]));
   const paymentCounts = await prisma.paymentLog.groupBy({
     by: ["leadId"],
-    where: withWorkspaceFallbackScope(workspaceId),
+    where: strictWorkspaceScope(workspaceId),
     _count: { leadId: true },
   });
   const paymentCountByLead = new Map(paymentCounts.map((item) => [item.leadId, item._count.leadId]));
-  const caseStudies = await prisma.caseStudy.findMany({ where: withWorkspaceFallbackScope(workspaceId), orderBy: [{ updatedAt: "desc" }] });
+  const caseStudies = await prisma.caseStudy.findMany({ where: strictWorkspaceScope(workspaceId), orderBy: [{ updatedAt: "desc" }] });
   const latestImportJob = await prisma.importJob.findFirst({
-    where: { ...withWorkspaceFallbackScope(workspaceId), status: { in: ["Queued", "Running"] } },
+    where: { ...strictWorkspaceScope(workspaceId), status: { in: ["Queued", "Running"] } },
     orderBy: { createdAt: "desc" },
   });
   const recentImportJobs = await prisma.importJob.findMany({
-    where: withWorkspaceFallbackScope(workspaceId),
+    where: strictWorkspaceScope(workspaceId),
     orderBy: { createdAt: "desc" },
     take: 8,
   });
   const [queueDepth, failedJobsCount, eventsLast24h] = await Promise.all([
-    prisma.importJob.count({ where: { ...withWorkspaceFallbackScope(workspaceId), status: { in: ["Queued", "Running"] } } }),
-    prisma.importJob.count({ where: { ...withWorkspaceFallbackScope(workspaceId), status: "Failed" } }),
-    prisma.eventLog.count({ where: { ...withWorkspaceFallbackScope(workspaceId), createdAt: { gte: last24Hours } } }),
+    prisma.importJob.count({ where: { ...strictWorkspaceScope(workspaceId), status: { in: ["Queued", "Running"] } } }),
+    prisma.importJob.count({ where: { ...strictWorkspaceScope(workspaceId), status: "Failed" } }),
+    prisma.eventLog.count({ where: { ...strictWorkspaceScope(workspaceId), createdAt: { gte: last24Hours } } }),
   ]);
   const sequences = await prisma.sequence.findMany({
     where: { workspaceId },
