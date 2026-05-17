@@ -227,6 +227,8 @@ export function LeadGenCommandCenter({
   const allVisibleSelected = filteredLeads.length > 0 && filteredLeads.every((lead) => selectedIds.has(lead.id));
 
   const selectionHint = buildSelectionHint(uiState.selectedCount);
+  const hasLiveExternalConnector = connectorDiagnostics.some((diag) =>
+    (diag.sourceType === "google_places" || diag.sourceType === "yelp_fusion") && diag.status === "ready");
 
   const updateFilter = <K extends keyof typeof defaultFilters>(
     key: K,
@@ -601,7 +603,9 @@ export function LeadGenCommandCenter({
                   <h2 className="font-black">Connector Health Diagnostics</h2>
                   <p className="text-xs text-slate-500">Readiness, env, and safety checks for LeadGen source adapters.</p>
                 </div>
-                <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-800">External connectors remain approval-gated.</span>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-black ${hasLiveExternalConnector ? "bg-lime-100 text-lime-800" : "bg-amber-100 text-amber-800"}`}>
+                  {hasLiveExternalConnector ? "External connectors live-enabled." : "External connectors remain approval-gated."}
+                </span>
               </div>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {connectorDiagnostics.map((diag) => (

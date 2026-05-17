@@ -23,6 +23,9 @@ export default async function LeadgenPage() {
     GOOGLE_SHEETS_PRIVATE_KEY: process.env.GOOGLE_SHEETS_PRIVATE_KEY,
     GOOGLE_SHEETS_SPREADSHEET_ID: process.env.GOOGLE_SHEETS_SPREADSHEET_ID,
     GOOGLE_PLACES_API_KEY: process.env.GOOGLE_PLACES_API_KEY,
+    YELP_API_KEY: process.env.YELP_API_KEY,
+    LEADGEN_LIVE_CONNECTORS_ENABLED: process.env.LEADGEN_LIVE_CONNECTORS_ENABLED,
+    LEADGEN_SANDBOX_MODE: process.env.LEADGEN_SANDBOX_MODE,
   });
   return (
     <LeadGenCommandCenter

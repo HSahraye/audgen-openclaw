@@ -21,15 +21,35 @@ describe("leadgen diagnostics", () => {
     expect(mock?.safeNow).toBe(true);
   });
 
-  it("keeps approval-gated connectors blocked even with env vars", () => {
+  it("keeps connectors gated when live toggle is off", () => {
     const diagnostics = buildConnectorDiagnostics({
       GOOGLE_SHEETS_CLIENT_EMAIL: "svc@test.local",
       GOOGLE_SHEETS_PRIVATE_KEY: "key",
       GOOGLE_SHEETS_SPREADSHEET_ID: "sheet-id",
       GOOGLE_PLACES_API_KEY: "places-key",
+      YELP_API_KEY: "yelp-key",
+      LEADGEN_LIVE_CONNECTORS_ENABLED: "false",
+      LEADGEN_SANDBOX_MODE: "false",
     });
     const places = diagnostics.find((item) => item.id === "diag-google-places");
+    const yelp = diagnostics.find((item) => item.id === "diag-yelp-fusion");
     expect(places?.status).toBe("requires_approval");
+    expect(yelp?.status).toBe("requires_approval");
     expect(places?.safeNow).toBe(false);
+  });
+
+  it("marks live connectors ready when env keys and runtime toggles are enabled", () => {
+    const diagnostics = buildConnectorDiagnostics({
+      GOOGLE_PLACES_API_KEY: "places-key",
+      YELP_API_KEY: "yelp-key",
+      LEADGEN_LIVE_CONNECTORS_ENABLED: "true",
+      LEADGEN_SANDBOX_MODE: "false",
+    });
+    const places = diagnostics.find((item) => item.id === "diag-google-places");
+    const yelp = diagnostics.find((item) => item.id === "diag-yelp-fusion");
+    expect(places?.status).toBe("ready");
+    expect(places?.safeNow).toBe(true);
+    expect(yelp?.status).toBe("ready");
+    expect(yelp?.safeNow).toBe(true);
   });
 });

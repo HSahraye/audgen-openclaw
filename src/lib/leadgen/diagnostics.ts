@@ -25,6 +25,8 @@ type ConnectorEnvState = {
   GOOGLE_SHEETS_SPREADSHEET_ID?: string;
   GOOGLE_PLACES_API_KEY?: string;
   YELP_API_KEY?: string;
+  LEADGEN_LIVE_CONNECTORS_ENABLED?: string;
+  LEADGEN_SANDBOX_MODE?: string;
 };
 
 function hasAllEnv(values: Array<string | undefined>) {
@@ -40,6 +42,9 @@ export function buildConnectorDiagnostics(env: ConnectorEnvState): ConnectorDiag
   ]);
   const placesEnv = hasAllEnv([env.GOOGLE_PLACES_API_KEY]);
   const yelpEnv = hasAllEnv([env.YELP_API_KEY]);
+  const liveEnabled = env.LEADGEN_LIVE_CONNECTORS_ENABLED === "true";
+  const sandboxMode = env.LEADGEN_SANDBOX_MODE === "true";
+  const liveActive = liveEnabled && !sandboxMode;
 
   return [
     {
@@ -94,13 +99,15 @@ export function buildConnectorDiagnostics(env: ConnectorEnvState): ConnectorDiag
       id: "diag-google-places",
       label: "Google Places",
       sourceType: "google_places",
-      status: placesEnv ? "requires_approval" : "missing_env",
+      status: placesEnv ? (liveActive ? "ready" : "requires_approval") : "missing_env",
       requiredEnv: ["GOOGLE_PLACES_API_KEY"],
       hasExternalCalls: true,
-      safeNow: false,
+      safeNow: placesEnv && liveActive,
       lastCheckedAt: now,
       safetyNote: placesEnv
-        ? "Disabled in phase 2 to avoid live paid API usage."
+        ? liveActive
+          ? "Live connector enabled. Runtime lookups execute against Google Places."
+          : "API key detected, but live lookups are disabled by sandbox or kill-switch."
         : "Missing API key and approval gate.",
     },
     {
@@ -118,13 +125,15 @@ export function buildConnectorDiagnostics(env: ConnectorEnvState): ConnectorDiag
       id: "diag-yelp-fusion",
       label: "Yelp Fusion",
       sourceType: "yelp_fusion",
-      status: yelpEnv ? "requires_approval" : "missing_env",
+      status: yelpEnv ? (liveActive ? "ready" : "requires_approval") : "missing_env",
       requiredEnv: ["YELP_API_KEY"],
       hasExternalCalls: true,
-      safeNow: false,
+      safeNow: yelpEnv && liveActive,
       lastCheckedAt: now,
       safetyNote: yelpEnv
-        ? "Disabled in phase 2/3 for live-cost safety pending explicit approval."
+        ? liveActive
+          ? "Live connector enabled. Runtime lookups execute against Yelp Fusion."
+          : "API key detected, but live lookups are disabled by sandbox or kill-switch."
         : "Missing API key and approval gate.",
     },
     {
