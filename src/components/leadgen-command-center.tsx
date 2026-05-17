@@ -26,6 +26,7 @@ import {
   queueLeadgenAuditGenerationAction,
   saveLeadgenViewAction,
 } from "@/app/actions/leadgen";
+import { selectAddSelectedBanner } from "@/app/actions/leadgen-result";
 import { BRANDING_CONFIG } from "@/config/branding";
 import { parseCsv } from "@/lib/csv";
 import type { ConnectorDiagnostic } from "@/lib/leadgen/diagnostics";
@@ -181,6 +182,13 @@ export function LeadGenCommandCenter({
   const [activeLeadId, setActiveLeadId] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [providerWarning, setProviderWarning] = useState("");
+  // Three-tier user feedback channel:
+  //   • infoMessage   — clean success or neutral status (sky)
+  //   • warningMessage — partial success / typed-skip outcomes (amber)
+  //   • errorMessage  — full failure or invalid input (rose)
+  // Each channel is mutually exclusive at write time so banners never
+  // contradict each other.
+  const [warningMessage, setWarningMessage] = useState("");
   const [infoMessage, setInfoMessage] = useState(
     "AudGen Engine: Live Connector Sandbox Mode Active. Simulated discovery searches incur $0 token costs.",
   );
@@ -279,9 +287,25 @@ export function LeadGenCommandCenter({
     if (!selectedLeads.length) return;
     startAddTransition(async () => {
       setErrorMessage("");
+      setWarningMessage("");
+      setInfoMessage("");
       const result = await addSelectedLeadgenToAudgenAction(selectedLeads);
-      setInfoMessage(`Added ${result.added} lead(s) to ${BRANDING_CONFIG.appName} queue.`);
-      setLeads((current) => current.map((lead) => (selectedIds.has(lead.id) ? { ...lead, status: "queued" } : lead)));
+      // Banner channel selected via the action module's pure helper so
+      // production code and the regression tests share one source of
+      // truth (see selectAddSelectedBanner in src/app/actions/leadgen.ts).
+      const channel = selectAddSelectedBanner(result);
+      if (channel === "info") setInfoMessage(result.message);
+      else if (channel === "warning") setWarningMessage(result.message);
+      else setErrorMessage(result.message);
+      // Only flip locally-rendered status for leads that actually queued
+      // (avoid promising an "in queue" badge for cross-workspace skips).
+      if (result.added > 0) {
+        setLeads((current) =>
+          current.map((lead) =>
+            selectedIds.has(lead.id) && result.added > 0 ? { ...lead, status: "queued" } : lead,
+          ),
+        );
+      }
       router.refresh();
     });
   };
@@ -481,7 +505,8 @@ export function LeadGenCommandCenter({
           </div>
           <p className="text-xs font-bold text-slate-500">{selectionHint}</p>
           {infoMessage ? <p className="rounded-xl bg-sky-50 p-3 text-xs font-black text-sky-800">{infoMessage}</p> : null}
-          {errorMessage ? <p className="rounded-xl bg-rose-50 p-3 text-xs font-black text-rose-700">{errorMessage}</p> : null}
+          {warningMessage ? <p role="status" className="rounded-xl bg-amber-50 p-3 text-xs font-black text-amber-900 border border-amber-200">{warningMessage}</p> : null}
+          {errorMessage ? <p role="alert" className="rounded-xl bg-rose-50 p-3 text-xs font-black text-rose-700">{errorMessage}</p> : null}
         </div>
       </header>
 

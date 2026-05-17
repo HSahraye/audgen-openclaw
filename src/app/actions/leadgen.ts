@@ -21,8 +21,14 @@ import {
 } from "@/lib/leadgen/persistence";
 import { discoverLeadgenOpportunities } from "@/lib/leadgen/sources";
 import type { LeadOpportunity, LeadOpportunityFilters, LeadOpportunityWorkflowStatus } from "@/lib/leadgen/types";
+import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { strictWorkspaceScope } from "@/lib/workspace";
+
+// Typed result + banner-decision helper live in a sibling non-"use server"
+// module so the strict server-actions compiler does not reject them.
+// See src/app/actions/leadgen-result.ts.
+import type { AddLeadgenSkipReason, AddSelectedLeadgenResult } from "@/app/actions/leadgen-result";
 
 const savedViewSchema = z.object({
   name: z.string().min(2).max(80),
@@ -173,30 +179,128 @@ async function resolveLeadgenQueueDispatchCandidates(
 
 export async function addSelectedLeadgenToAudgenAction(
   opportunities: LeadOpportunity[],
-) {
+): Promise<AddSelectedLeadgenResult> {
   // SECURITY: session-derived workspaceId. See SECURITY note on /leadgen page.
   const { workspaceId } = await requireSessionRole(["owner", "admin", "sales", "member"]);
-  await saveLeadgenOpportunities(
-    workspaceId,
-    opportunities.map((lead) => ({ ...lead, status: "queued", lastActionAt: new Date().toISOString() })),
-  );
-  for (const lead of opportunities) {
-    await createLeadgenActivity(
-      workspaceId,
-      lead.id,
-      "added_to_audgen_queue",
-      `Lead added to ${BRANDING_CONFIG.appName} queue.`,
-    );
+
+  // 1. INPUT VALIDATION. Guard against empty arrays and malformed entries.
+  if (!Array.isArray(opportunities) || opportunities.length === 0) {
+    return {
+      ok: false,
+      added: 0,
+      skipped: 0,
+      total: 0,
+      reason: "invalid_input",
+      message: "Select at least one lead before adding to the queue.",
+    };
   }
-  const updated = await bulkUpdateLeadgenStatus(
-    workspaceId,
-    opportunities.map((lead) => lead.id),
-    "queued",
-    `Queued for ${BRANDING_CONFIG.appName} workflow.`,
+  const valid = opportunities.filter((lead): lead is LeadOpportunity =>
+    Boolean(lead && typeof lead.id === "string" && lead.id.length > 0),
   );
+  const invalidCount = opportunities.length - valid.length;
+
+  // 2. CROSS-WORKSPACE GUARD. Defense-in-depth on top of b8a3975. If a
+  // selected lead carries a `workspaceId` field tagging it to a tenant
+  // OTHER than the caller's session workspace, drop it explicitly with
+  // a typed reason rather than silently writing it under the caller's
+  // workspaceId (which would re-introduce the cross-tenant leak by way
+  // of accidental migration). Sandbox/discovery leads have no
+  // workspaceId on them and pass through cleanly.
+  type MaybeScoped = LeadOpportunity & { workspaceId?: string | null };
+  const crossWorkspace = valid.filter((lead) => {
+    const scoped = lead as MaybeScoped;
+    return typeof scoped.workspaceId === "string" && scoped.workspaceId.length > 0 && scoped.workspaceId !== workspaceId;
+  });
+  const inWorkspace = valid.filter((lead) => !crossWorkspace.includes(lead));
+
+  // 3. CANONICAL WRITE. saveLeadgenOpportunities is the upsert path that
+  // really persists the lead under the caller's workspaceId. The
+  // follow-up bulkUpdateLeadgenStatus is kept ONLY for its activity-log
+  // side effect; we no longer use its return count for the user-facing
+  // "added" number because the legacy researchQueueItem fallback
+  // queries by cuid and never finds discovery-side ids — that
+  // mismatch is what caused the production "Added 0 of 14" bug.
+  let added = 0;
+  if (inWorkspace.length > 0) {
+    const now = new Date().toISOString();
+    await saveLeadgenOpportunities(
+      workspaceId,
+      inWorkspace.map((lead) => ({ ...lead, status: "queued", lastActionAt: now })),
+    );
+    for (const lead of inWorkspace) {
+      await createLeadgenActivity(
+        workspaceId,
+        lead.id,
+        "added_to_audgen_queue",
+        `Lead added to ${BRANDING_CONFIG.appName} queue.`,
+      );
+    }
+    // Best-effort status pass for previously-existing rows. Failure of
+    // this pass MUST NOT zero out the user-facing count — the rows are
+    // already persisted by saveLeadgenOpportunities above.
+    try {
+      await bulkUpdateLeadgenStatus(
+        workspaceId,
+        inWorkspace.map((lead) => lead.id),
+        "queued",
+        `Queued for ${BRANDING_CONFIG.appName} workflow.`,
+      );
+    } catch (error) {
+      logger.warn("leadgen_bulk_status_pass_failed", {
+        workspaceId,
+        count: inWorkspace.length,
+        reason: error instanceof Error ? error.message : "unknown",
+      });
+    }
+    added = inWorkspace.length;
+  }
+
   revalidatePath("/leadgen");
   revalidatePath("/research");
-  return { ok: true, added: updated, skipped: 0, error: "" };
+
+  const skipped = crossWorkspace.length + invalidCount;
+  const total = opportunities.length;
+  let reason: AddLeadgenSkipReason = "none";
+  if (added === 0 && total > 0) {
+    reason = crossWorkspace.length > 0 ? "cross_workspace" : "invalid_input";
+  } else if (skipped > 0) {
+    reason = crossWorkspace.length > 0 ? "cross_workspace" : "invalid_input";
+  }
+
+  // Compose the user-facing message. The UI banner color is selected
+  // from { added, skipped, reason } on the client (see leadgen-command-center).
+  let message: string;
+  if (added > 0 && skipped === 0) {
+    message = `Added ${added} lead${added === 1 ? "" : "s"} to ${BRANDING_CONFIG.appName} queue.`;
+  } else if (added > 0 && skipped > 0) {
+    if (reason === "cross_workspace") {
+      message = `Added ${added} of ${total} leads. ${skipped} belong to another workspace and were skipped.`;
+    } else {
+      message = `Added ${added} of ${total} leads. ${skipped} were invalid and were skipped.`;
+    }
+  } else {
+    if (reason === "cross_workspace") {
+      message = `${total} lead${total === 1 ? "" : "s"} could not be added — they belong to another workspace.`;
+    } else if (reason === "invalid_input") {
+      message = invalidCount === total
+        ? `Selection contained no valid leads.`
+        : `No leads were added. Please retry the discovery and try again.`;
+    } else {
+      message = `No leads were added.`;
+    }
+  }
+
+  if (added === 0) {
+    logger.warn("leadgen_add_selected_zero_added", {
+      workspaceId,
+      total,
+      invalidCount,
+      crossWorkspace: crossWorkspace.length,
+      reason,
+    });
+  }
+
+  return { ok: added > 0, added, skipped, total, reason, message };
 }
 
 export async function persistLeadgenOpportunitiesAction(opportunities: LeadOpportunity[]) {
