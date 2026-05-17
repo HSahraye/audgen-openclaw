@@ -1,5 +1,21 @@
 import { z } from "zod";
 
+const BUILD_TIME_DATABASE_URL_FALLBACK = "postgresql://build:build@localhost:5432/build";
+
+function isBuildTimeEvaluation() {
+  return process.env.NEXT_PHASE === "phase-production-build";
+}
+
+function envForValidation() {
+  if (process.env.DATABASE_URL?.trim()) {
+    return process.env;
+  }
+  if (isBuildTimeEvaluation()) {
+    return { ...process.env, DATABASE_URL: BUILD_TIME_DATABASE_URL_FALLBACK };
+  }
+  return process.env;
+}
+
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   DATABASE_URL: z.string().min(1),
@@ -71,7 +87,7 @@ let cachedEnv: ParsedEnv | null = null;
 
 export function getEnv(): ParsedEnv {
   if (cachedEnv) return cachedEnv;
-  cachedEnv = envSchema.parse(process.env);
+  cachedEnv = envSchema.parse(envForValidation());
   return cachedEnv;
 }
 
@@ -82,7 +98,10 @@ export function isAuthEnabled() {
 
 export function assertProductionEnv() {
   const env = getEnv();
-  const shouldEnforce = env.NODE_ENV === "production" && (process.env.ENFORCE_ENV_VALIDATION === "true" || process.env.NETLIFY === "true");
+  const shouldEnforce = env.NODE_ENV === "production"
+    && !isBuildTimeEvaluation()
+    && process.env.SKIP_ENV_VALIDATION !== "true"
+    && (process.env.ENFORCE_ENV_VALIDATION === "true" || process.env.NETLIFY === "true");
   if (!shouldEnforce) return;
 
   const requiredInProd = z.object({
