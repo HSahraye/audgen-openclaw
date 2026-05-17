@@ -28,17 +28,29 @@ import { getWorkspaceContext, withWorkspaceFallbackScope } from "@/lib/workspace
 const leadStatuses = ["New", "Contacted", "Follow-up", "Won", "Lost"] as const;
 const MAX_SYNC_AUDIT_ROWS_PER_IMPORT = 50;
 
-const formSchema = z.object({
+// SECURITY/UX: FormData.get() returns string | File | null. Bare
+// z.string().optional() rejects null with "Invalid input: expected string,
+// received null" and crashes the audit form when optional inputs are blank.
+// optionalString() coerces null/undefined to "" so optional means optional.
+const optionalString = (max?: number) => {
+  let inner = z.string();
+  if (typeof max === "number") inner = inner.max(max);
+  return z.preprocess((value) => (value == null ? "" : value), inner.optional());
+};
+
+export const leadFormSchema = z.object({
   businessName: z.string().min(1, "Business name is required."),
-  ownerName: z.string().optional(),
-  category: z.string().optional(),
-  location: z.string().optional(),
-  websiteUrl: z.string().optional(),
-  googleProfileUrl: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().optional(),
-  notes: z.string().optional(),
+  ownerName: optionalString(),
+  category: optionalString(),
+  location: optionalString(),
+  websiteUrl: optionalString(),
+  googleProfileUrl: optionalString(),
+  phone: optionalString(),
+  email: optionalString(),
+  notes: optionalString(),
 });
+
+const formSchema = leadFormSchema;
 
 const statusSchema = z.object({
   id: z.string().min(1),

@@ -5,13 +5,22 @@ import { generateLeadIntelligence } from "@/lib/intelligence/engine";
 import { resolveGenerationContext } from "@/lib/generation/context";
 import { resolvePublicSenderName } from "@/lib/branding";
 
+// SECURITY/UX: null inputs (e.g. propagated from FormData.get()) used to
+// crash with "Invalid input: expected string, received null". Preprocess
+// coerces null/undefined to "" so optional fields stay optional.
+const optionalAuditString = (max: number) =>
+  z.preprocess(
+    (value) => (value == null ? "" : value),
+    z.string().max(max).optional(),
+  );
+
 const inputSchema = z.object({
   businessName: z.string().min(1).max(140),
-  category: z.string().max(80).optional().or(z.literal("")),
-  location: z.string().max(120).optional().or(z.literal("")),
-  websiteUrl: z.string().max(300).optional().or(z.literal("")),
-  googleProfileUrl: z.string().max(500).optional().or(z.literal("")),
-  notes: z.string().max(4000).optional().or(z.literal("")),
+  category: optionalAuditString(80),
+  location: optionalAuditString(120),
+  websiteUrl: optionalAuditString(300),
+  googleProfileUrl: optionalAuditString(500),
+  notes: optionalAuditString(4000),
 });
 
 const businessCategoryDefaults: Record<string, string> = {

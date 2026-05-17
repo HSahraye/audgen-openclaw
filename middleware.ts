@@ -17,18 +17,41 @@ function isInternalPath(pathname: string) {
   return true;
 }
 
+// SECURITY: routes that must require an authenticated session even when the
+// global APP_AUTH_ENABLED kill switch is off. These pages expose sensitive
+// configuration (billing, approval workflows) and must never be accessible
+// via unauthenticated deep links in any deploy context.
+function isProtectedHardGate(pathname: string) {
+  if (pathname === "/settings" || pathname.startsWith("/settings/")) return true;
+  if (pathname === "/approvals" || pathname.startsWith("/approvals/")) return true;
+  if (pathname === "/automation/approvals" || pathname.startsWith("/automation/approvals/")) return true;
+  return false;
+}
+
+function redirectToLogin(request: NextRequest, pathname: string) {
+  const loginUrl = new URL("/login", request.url);
+  loginUrl.searchParams.set("next", pathname);
+  return NextResponse.redirect(loginUrl);
+}
+
 export function middleware(request: NextRequest) {
-  if (!isAuthEnabled()) return NextResponse.next();
   const { pathname } = request.nextUrl;
+
+  if (isProtectedHardGate(pathname)) {
+    const betterAuthSession = getSessionCookie(request);
+    const legacySession = request.cookies.get("pl_session")?.value;
+    if (betterAuthSession || legacySession) return NextResponse.next();
+    return redirectToLogin(request, pathname);
+  }
+
+  if (!isAuthEnabled()) return NextResponse.next();
   if (!isInternalPath(pathname)) return NextResponse.next();
 
   const betterAuthSession = getSessionCookie(request);
   const legacySession = request.cookies.get("pl_session")?.value;
   if (betterAuthSession || legacySession) return NextResponse.next();
 
-  const loginUrl = new URL("/login", request.url);
-  loginUrl.searchParams.set("next", pathname);
-  return NextResponse.redirect(loginUrl);
+  return redirectToLogin(request, pathname);
 }
 
 export const config = {
