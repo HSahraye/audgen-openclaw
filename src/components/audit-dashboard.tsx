@@ -12,6 +12,7 @@ import { BRANDING_CONFIG } from "@/config/branding";
 import { AuditGenBrandLockup } from "@/components/brand/auditgen-brand-lockup";
 import { WorkspaceSwitcher } from "@/components/workspace-switcher";
 import { sanitizePublicBrandCopy } from "@/lib/branding";
+import { parseLeadForDashboard } from "@/components/audit-dashboard-utils";
 import { buildMailtoHref, buildSmsHref, buildWhatsAppHref } from "@/lib/communication/links";
 import { getCloseProbability, getLeadHealthState, getLeadPriorityState, getMomentumLevel, getUrgencyLevel } from "@/lib/intelligence/selectors";
 import { toCsv } from "@/lib/csv";
@@ -424,20 +425,27 @@ export function AuditDashboard({
   const parsedLeads = useMemo<LeadView[]>(
     () =>
       leads.map((lead) => {
-        const parsedAssets = JSON.parse(lead.assetsJson) as GeneratedAssets;
+        // Defensive — `parseLeadForDashboard` handles the entire
+        // assetsJson + auditJson decoding with a hard isolation
+        // boundary: malformed/partial JSON renders with empty
+        // placeholders + a console.warn rather than crashing the
+        // entire dashboard. See the contract test
+        // `parse-lead-for-dashboard.test.ts` for the orphan-data
+        // regression guard. History note in audit-dashboard-utils.ts.
+        const parsed = parseLeadForDashboard({
+          id: lead.id,
+          businessName: lead.businessName,
+          status: lead.status,
+          auditJson: lead.auditJson,
+          assetsJson: lead.assetsJson,
+          intelligenceJson: lead.intelligenceJson ?? null,
+        });
         return {
           ...lead,
-          status: statuses.includes(lead.status as LeadStatus) ? (lead.status as LeadStatus) : "New",
-          audit: JSON.parse(lead.auditJson),
-          assets: {
-            ...parsedAssets,
-            coldCallScript: sanitizePublicBrandCopy(parsedAssets.coldCallScript),
-            textMessageScript: sanitizePublicBrandCopy(parsedAssets.textMessageScript),
-            emailScript: sanitizePublicBrandCopy(parsedAssets.emailScript),
-            thirtySecondPitch: sanitizePublicBrandCopy(parsedAssets.thirtySecondPitch),
-            followUpMessage: sanitizePublicBrandCopy(parsedAssets.followUpMessage),
-          },
-          intelligence: lead.intelligenceJson ? JSON.parse(lead.intelligenceJson) : null,
+          status: parsed.status,
+          audit: parsed.audit,
+          assets: parsed.assets,
+          intelligence: parsed.intelligence,
         };
       }),
     [leads],
