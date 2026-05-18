@@ -20,6 +20,7 @@ import {
   resolveLeadgenOpportunityDbIds,
   saveLeadgenOpportunities,
 } from "@/lib/leadgen/persistence";
+import { promoteOpportunityToLead } from "@/lib/leadgen/promote-to-lead";
 import { discoverLeadgenOpportunities } from "@/lib/leadgen/sources";
 import type { LeadOpportunity, LeadOpportunityFilters, LeadOpportunityWorkflowStatus } from "@/lib/leadgen/types";
 import { logger } from "@/lib/logger";
@@ -222,6 +223,7 @@ export async function addSelectedLeadgenToAudgenAction(
   // queries by cuid and never finds discovery-side ids — that
   // mismatch is what caused the production "Added 0 of 14" bug.
   let added = 0;
+  let leadPromotionFailures = 0;
   if (inWorkspace.length > 0) {
     const now = new Date().toISOString();
     await saveLeadgenOpportunities(
@@ -274,6 +276,44 @@ export async function addSelectedLeadgenToAudgenAction(
       }
     }
 
+    // PROMOTE TO DASHBOARD LEAD QUEUE.
+    //
+    // The previous behaviour persisted the opportunity in
+    // LeadgenOpportunity but never created a Lead row in the dashboard
+    // pipeline (the table backing `/`). The user clicked "Add Selected
+    // to Audgen", saw a sky-blue success banner, navigated to the home
+    // queue, and could not find their lead — they had to re-enter the
+    // info via the manual New Lead Audit form. This loop closes that
+    // gap: every selected discovery opportunity now produces (or
+    // refreshes) a Lead row visible in the dashboard.
+    //
+    // Each promotion is idempotent (matched by businessName + website
+    // OR phone, fallback location). Per-lead try/catch isolates a
+    // single failure from the whole batch. Failed promotions degrade
+    // the user-facing `added` count and surface via the partial-success
+    // banner channel (lead_promotion_failed reason).
+    //
+    // No `generateAudit()` is called here: that would burn the
+    // workspace's audit entitlement and call external paid APIs
+    // synchronously. The Lead row is created with stub auditJson /
+    // assetsJson; the user clicks "Regenerate" on the dashboard to
+    // populate full audit content on demand.
+    let leadPromotionSuccesses = 0;
+    for (const lead of inWorkspace) {
+      try {
+        await promoteOpportunityToLead(workspaceId, lead);
+        leadPromotionSuccesses += 1;
+      } catch (error) {
+        leadPromotionFailures += 1;
+        logger.warn("leadgen_add_selected_lead_promotion_failed", {
+          workspaceId,
+          opportunityExternalId: lead.id,
+          businessName: lead.businessName,
+          reason: error instanceof Error ? error.message : "unknown",
+        });
+      }
+    }
+
     // Best-effort status pass for previously-existing rows. Failure of
     // this pass MUST NOT zero out the user-facing count — the rows are
     // already persisted by saveLeadgenOpportunities above. (Note:
@@ -293,19 +333,33 @@ export async function addSelectedLeadgenToAudgenAction(
         reason: error instanceof Error ? error.message : "unknown",
       });
     }
-    added = inWorkspace.length;
+    // The user-facing `added` count tracks how many leads are now
+    // visible in the dashboard queue (the user's mental model of "Add
+    // Selected"). Opportunities that succeeded saveLeadgenOpportunities
+    // but failed lead promotion are surfaced as skipped via the
+    // lead_promotion_failed banner reason.
+    added = leadPromotionSuccesses;
   }
 
   revalidatePath("/leadgen");
   revalidatePath("/research");
+  // Dashboard pipeline path needs a fresh render so newly-promoted
+  // Leads appear in the home queue without a hard reload.
+  revalidatePath("/");
 
-  const skipped = crossWorkspace.length + invalidCount;
+  const skipped = crossWorkspace.length + invalidCount + leadPromotionFailures;
   const total = opportunities.length;
+  // Reason precedence: cross_workspace beats invalid_input beats
+  // lead_promotion_failed. The first two are operator-actionable
+  // (workspace mismatch, malformed selection); promotion-failure is a
+  // platform-side issue surfaced for ops visibility.
   let reason: AddLeadgenSkipReason = "none";
-  if (added === 0 && total > 0) {
-    reason = crossWorkspace.length > 0 ? "cross_workspace" : "invalid_input";
-  } else if (skipped > 0) {
-    reason = crossWorkspace.length > 0 ? "cross_workspace" : "invalid_input";
+  if (crossWorkspace.length > 0) {
+    reason = "cross_workspace";
+  } else if (invalidCount > 0) {
+    reason = "invalid_input";
+  } else if (leadPromotionFailures > 0) {
+    reason = "lead_promotion_failed";
   }
 
   // Compose the user-facing message. The UI banner color is selected
@@ -316,6 +370,9 @@ export async function addSelectedLeadgenToAudgenAction(
   } else if (added > 0 && skipped > 0) {
     if (reason === "cross_workspace") {
       message = `Added ${added} of ${total} leads. ${skipped} belong to another workspace and were skipped.`;
+    } else if (reason === "lead_promotion_failed") {
+      const fails = leadPromotionFailures;
+      message = `Added ${added} of ${total} leads. ${fails} could not be added to the dashboard queue — please retry.`;
     } else {
       message = `Added ${added} of ${total} leads. ${skipped} were invalid and were skipped.`;
     }
@@ -326,6 +383,8 @@ export async function addSelectedLeadgenToAudgenAction(
       message = invalidCount === total
         ? `Selection contained no valid leads.`
         : `No leads were added. Please retry the discovery and try again.`;
+    } else if (reason === "lead_promotion_failed") {
+      message = `Could not add any leads to the dashboard queue. Please retry — if the issue persists the operator has been notified.`;
     } else {
       message = `No leads were added.`;
     }
@@ -337,6 +396,7 @@ export async function addSelectedLeadgenToAudgenAction(
       total,
       invalidCount,
       crossWorkspace: crossWorkspace.length,
+      leadPromotionFailures,
       reason,
     });
   }
