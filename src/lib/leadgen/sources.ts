@@ -3,6 +3,7 @@ import type { LiveAdapterFetchResult, LiveAdapterProviderError, LiveAdapterQuery
 import { YelpAPIAdapter } from "@/lib/leadgen/live-adapters/yelp-api-adapter";
 import { getMockLeadOpportunities } from "@/lib/leadgen/mock-data";
 import type { LeadOpportunity, LeadSourceType } from "@/lib/leadgen/types";
+import { logger } from "@/lib/logger";
 
 type ConnectorEnvFlags = {
   googleSheetsConfigured?: boolean;
@@ -185,9 +186,19 @@ export async function discoverLeadgenOpportunities(queryText: string) {
 
   const buckets = await Promise.all(discoveryAdapters.map((adapter) => adapter.fetchLeads(query)));
   const providerWarnings: LiveAdapterProviderError[] = [];
-  for (const bucket of buckets) {
+  for (let i = 0; i < buckets.length; i++) {
+    const bucket = buckets[i];
+    const adapter = discoveryAdapters[i];
     if (bucket.providerError) {
       providerWarnings.push(bucket.providerError);
+      // Surface the underlying adapter message (which carries the HTTP status
+      // for !response.ok paths) so the operator can correlate the UI banner
+      // with the actual provider rejection.
+      logger.error("leadgen.discovery.providerFallback", {
+        source: adapter?.id ?? "unknown",
+        message: bucket.message,
+        textQuery: query.textQuery ?? "",
+      });
     }
   }
   const seen = new Set<string>();

@@ -6,6 +6,7 @@ import {
   type LiveAdapterQuery,
 } from "@/lib/leadgen/live-adapters/types";
 import type { LeadOpportunity } from "@/lib/leadgen/types";
+import { logger } from "@/lib/logger";
 
 function isSandboxMode() {
   return process.env.LEADGEN_SANDBOX_MODE === "true";
@@ -143,6 +144,18 @@ export class GooglePlacesAdapter {
         }),
       });
       if (!searchRes.ok) {
+        // Capture the provider response body (truncated) so the operator can
+        // diagnose the actual rejection reason — billing-not-enabled, key
+        // restricted to a different referrer, Places API not enabled in GCP,
+        // etc. The logger scrubs known secret patterns automatically.
+        const bodySnippet = await searchRes.text().catch(() => "");
+        const truncatedBody = bodySnippet.slice(0, 256);
+        logger.error("googlePlaces.fetchLeads.providerError", {
+          status: searchRes.status,
+          statusText: searchRes.statusText,
+          bodySnippet: truncatedBody,
+          textQuery,
+        });
         const fallbackLeads = generateSandboxLeads("google_places", query);
         return {
           status: "PROVIDER_ERROR",
@@ -166,7 +179,12 @@ export class GooglePlacesAdapter {
         blocked: false,
         message: `Google Places returned ${mapped.length} mapped leads.`,
       };
-    } catch {
+    } catch (err) {
+      logger.error("googlePlaces.fetchLeads.networkError", {
+        name: (err as Error)?.name,
+        message: (err as Error)?.message,
+        textQuery,
+      });
       const fallbackLeads = generateSandboxLeads("google_places", query);
       return {
         status: "PROVIDER_ERROR",

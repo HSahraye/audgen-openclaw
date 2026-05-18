@@ -6,6 +6,7 @@ import {
   type LiveAdapterQuery,
 } from "@/lib/leadgen/live-adapters/types";
 import type { LeadOpportunity } from "@/lib/leadgen/types";
+import { logger } from "@/lib/logger";
 
 function isSandboxMode() {
   return process.env.LEADGEN_SANDBOX_MODE === "true";
@@ -133,10 +134,9 @@ export class YelpAPIAdapter {
     searchUrl.searchParams.set("location", query.city?.trim() || "San Jose, CA");
     searchUrl.searchParams.set("categories", normalizeYelpCategoryAlias(query.category));
     searchUrl.searchParams.set("limit", String(liveLimit));
-    if (query.textQuery?.trim()) {
-      searchUrl.searchParams.set("term", query.textQuery.trim());
-    } else if (query.category?.trim()) {
-      searchUrl.searchParams.set("term", query.category.trim());
+    const textQuery = query.textQuery?.trim() || query.category?.trim() || "";
+    if (textQuery) {
+      searchUrl.searchParams.set("term", textQuery);
     }
 
     try {
@@ -148,6 +148,14 @@ export class YelpAPIAdapter {
         },
       });
       if (!response.ok) {
+        const bodySnippet = await response.text().catch(() => "");
+        const truncatedBody = bodySnippet.slice(0, 256);
+        logger.error("yelp.fetchLeads.providerError", {
+          status: response.status,
+          statusText: response.statusText,
+          bodySnippet: truncatedBody,
+          textQuery,
+        });
         const fallbackLeads = generateSandboxLeads("yelp_fusion", query);
         return {
           status: "PROVIDER_ERROR",
@@ -171,7 +179,12 @@ export class YelpAPIAdapter {
         blocked: false,
         message: `Yelp returned ${mapped.length} mapped leads.`,
       };
-    } catch {
+    } catch (err) {
+      logger.error("yelp.fetchLeads.networkError", {
+        name: (err as Error)?.name,
+        message: (err as Error)?.message,
+        textQuery,
+      });
       const fallbackLeads = generateSandboxLeads("yelp_fusion", query);
       return {
         status: "PROVIDER_ERROR",
