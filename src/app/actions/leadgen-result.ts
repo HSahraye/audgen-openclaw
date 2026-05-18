@@ -17,20 +17,7 @@
  * indexes rows by cuid while sandbox-discovered leads carry a synthetic
  * discovery-side id, producing the silent "Added 0 lead(s)" UX bug.
  */
-export type AddLeadgenSkipReason =
-  | "none"
-  | "cross_workspace"
-  | "invalid_input"
-  /**
-   * The opportunity passed cross-workspace + validity checks and was
-   * persisted in LeadgenOpportunity, but the dashboard-pipeline Lead
-   * row failed to materialise (e.g. unique-constraint race, transient
-   * DB error). The user-facing count reflects how many leads are
-   * actually visible in the dashboard queue, not how many made it to
-   * the LeadgenOpportunity table — that's the observation that matches
-   * the user's mental model when they click "Add Selected to Audgen".
-   */
-  | "lead_promotion_failed";
+export type AddLeadgenSkipReason = "none" | "cross_workspace" | "invalid_input";
 
 export type AddSelectedLeadgenResult = {
   ok: boolean;

@@ -52,14 +52,6 @@ const LIBRARY_READ_PATHS = [
   "src/lib/templates/resolver.ts",
 ];
 
-// Library write helpers that take a workspaceId argument and must scope
-// every Prisma read/write through `strictWorkspaceScope(workspaceId)`,
-// not `getWorkspaceContext()` or `withWorkspaceFallbackScope`. Adding a
-// helper here pins the invariant for that file.
-const LIBRARY_WRITE_PATHS = [
-  "src/lib/leadgen/promote-to-lead.ts",
-];
-
 describe("workspace-scope invariants on auth-gated user-facing pages", () => {
   for (const rel of AUTH_GATED_PAGES) {
     describe(rel, () => {
@@ -128,29 +120,6 @@ describe("workspace-scope invariants on library read paths", () => {
         .replace(/\/\*[\s\S]*?\*\//g, "")
         .replace(/^\s*\/\/.*$/gm, "");
       expect(stripped.includes("withWorkspaceFallbackScope"), rel).toBe(false);
-    });
-  }
-});
-
-describe("workspace-scope invariants on library write paths", () => {
-  for (const rel of LIBRARY_WRITE_PATHS) {
-    describe(rel, () => {
-      const source = read(rel);
-      const stripped = source
-        .replace(/\/\*[\s\S]*?\*\//g, "")
-        .replace(/^\s*\/\/.*$/gm, "");
-
-      it("does NOT use withWorkspaceFallbackScope (legacy leaky helper)", () => {
-        expect(stripped.includes("withWorkspaceFallbackScope"), rel).toBe(false);
-      });
-
-      it("does NOT call getWorkspaceContext() (would resolve to platform default)", () => {
-        expect(stripped.includes("getWorkspaceContext"), rel).toBe(false);
-      });
-
-      it("uses strictWorkspaceScope on every Prisma access", () => {
-        expect(stripped.includes("strictWorkspaceScope"), rel).toBe(true);
-      });
     });
   }
 });

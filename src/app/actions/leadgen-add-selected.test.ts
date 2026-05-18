@@ -31,7 +31,6 @@ const mocks = vi.hoisted(() => ({
   createLeadgenActivity: vi.fn(),
   bulkUpdateLeadgenStatus: vi.fn(),
   resolveLeadgenOpportunityDbIds: vi.fn(),
-  promoteOpportunityToLead: vi.fn(),
   revalidatePath: vi.fn(),
   loggerWarn: vi.fn(),
 }));
@@ -51,10 +50,6 @@ vi.mock("@/lib/leadgen/persistence", () => ({
   resolveLeadgenOpportunityDbIds: mocks.resolveLeadgenOpportunityDbIds,
   createLeadgenSavedView: vi.fn(),
   deleteLeadgenSavedView: vi.fn(),
-}));
-
-vi.mock("@/lib/leadgen/promote-to-lead", () => ({
-  promoteOpportunityToLead: mocks.promoteOpportunityToLead,
 }));
 
 vi.mock("@/lib/leadgen/sources", () => ({
@@ -160,17 +155,6 @@ beforeEach(() => {
   mocks.resolveLeadgenOpportunityDbIds.mockImplementation(async (_workspaceId: string, ids: string[]) => {
     return new Map(ids.map((id) => [id, id]));
   });
-  // Default: every promotion succeeds with a synthesized cuid. Specific
-  // tests for the dashboard-promotion gap (production reproducer
-  // "TRIO Heating / IRBIS HVAC / San Jose Heating" — leads marked
-  // QUEUED on /leadgen but never appearing on /) override this with
-  // a rejection.
-  mocks.promoteOpportunityToLead.mockImplementation(async (workspaceId: string, opportunity: LeadOpportunity) => ({
-    leadId: `lead_cuid_${opportunity.id}`,
-    created: true,
-    status: "New",
-    workspaceId,
-  }));
 });
 
 describe("addSelectedLeadgenToAudgenAction", () => {
@@ -475,193 +459,6 @@ describe("addSelectedLeadgenToAudgenAction", () => {
         SESSION_WORKSPACE,
         ["lead_q"],
       );
-    });
-  });
-
-  // REGRESSION GUARD for the dashboard-pipeline gap reported on
-  // 2026-05-18 PM: operator clicked "Add Selected to Audgen" on three
-  // live HVAC leads (TRIO Heating, IRBIS HVAC, San Jose Heating), saw
-  // the sky-blue success banner ("Added 3 leads to Audgen queue"), but
-  // could not find any of the three on the home dashboard. Status
-  // badges on /leadgen showed QUEUED but the Lead pipeline row never
-  // existed, so the user had to manually re-enter each business via
-  // the New Lead Audit form to generate an audit.
-  //
-  // The fix promotes every selected opportunity to a dashboard Lead
-  // row (idempotent on businessName + websiteUrl/phone). These tests
-  // pin the integration contract between the action and
-  // promoteOpportunityToLead.
-  describe("dashboard pipeline promotion — Add Selected to Audgen creates Lead rows", () => {
-    it("calls promoteOpportunityToLead once per in-workspace selected opportunity", async () => {
-      const live = [
-        makeLead({ id: "trio", businessName: "TRIO Heating & Cooling" }),
-        makeLead({ id: "irbis", businessName: "IRBIS HVAC" }),
-        makeLead({ id: "sj", businessName: "San Jose Heating" }),
-      ];
-      const result = await addSelectedLeadgenToAudgenAction(live);
-      expect(result.ok).toBe(true);
-      expect(result.added).toBe(3);
-      expect(result.skipped).toBe(0);
-      expect(result.reason).toBe("none");
-      expect(mocks.promoteOpportunityToLead).toHaveBeenCalledTimes(3);
-      // Every call must use the SESSION workspaceId — never any
-      // workspaceId carried on the inbound opportunity.
-      for (const call of mocks.promoteOpportunityToLead.mock.calls) {
-        expect(call[0]).toBe(SESSION_WORKSPACE);
-      }
-      const promotedNames = mocks.promoteOpportunityToLead.mock.calls
-        .map((call) => (call[1] as LeadOpportunity).businessName)
-        .sort();
-      expect(promotedNames).toEqual([
-        "IRBIS HVAC",
-        "San Jose Heating",
-        "TRIO Heating & Cooling",
-      ]);
-    });
-
-    it("does NOT promote opportunities tagged for another workspace (defense in depth on b8a3975)", async () => {
-      const mine = makeLead({ id: "mine", businessName: "My HVAC" });
-      const theirs = {
-        ...makeLead({ id: "theirs", businessName: "Other Tenant HVAC" }),
-        workspaceId: "ws_OTHER_TENANT",
-      } as unknown as LeadOpportunity;
-      const result = await addSelectedLeadgenToAudgenAction([mine, theirs]);
-      expect(result.added).toBe(1);
-      expect(result.skipped).toBe(1);
-      expect(result.reason).toBe("cross_workspace");
-      // Only the in-workspace lead may be promoted.
-      expect(mocks.promoteOpportunityToLead).toHaveBeenCalledTimes(1);
-      expect(mocks.promoteOpportunityToLead.mock.calls[0]?.[0]).toBe(SESSION_WORKSPACE);
-      expect(
-        (mocks.promoteOpportunityToLead.mock.calls[0]?.[1] as LeadOpportunity)?.businessName,
-      ).toBe("My HVAC");
-    });
-
-    it("isolates a single Lead promotion failure — one failure does not crash the batch", async () => {
-      // Three leads, the middle one's promotion throws (e.g. a
-      // unique-constraint race). Result must still be ok=true with
-      // added reflecting only the successful promotions and
-      // reason=lead_promotion_failed.
-      mocks.promoteOpportunityToLead.mockReset();
-      mocks.promoteOpportunityToLead
-        .mockResolvedValueOnce({ leadId: "cuid_a", created: true, status: "New" })
-        .mockRejectedValueOnce(new Error("Unique constraint failed on the fields: (`shortSlug`)"))
-        .mockResolvedValueOnce({ leadId: "cuid_c", created: true, status: "New" });
-      const result = await addSelectedLeadgenToAudgenAction([
-        makeLead({ id: "lead_a" }),
-        makeLead({ id: "lead_b" }),
-        makeLead({ id: "lead_c" }),
-      ]);
-      expect(result.ok).toBe(true);
-      expect(result.added).toBe(2);
-      expect(result.skipped).toBe(1);
-      expect(result.total).toBe(3);
-      expect(result.reason).toBe("lead_promotion_failed");
-      expect(result.message).toMatch(/Added 2 of 3 leads/);
-      expect(result.message).toMatch(/dashboard queue/);
-      expect(mocks.loggerWarn).toHaveBeenCalledWith(
-        "leadgen_add_selected_lead_promotion_failed",
-        expect.objectContaining({
-          workspaceId: SESSION_WORKSPACE,
-          opportunityExternalId: "lead_b",
-        }),
-      );
-    });
-
-    it("when ALL Lead promotions fail, result is ok=false with lead_promotion_failed reason (rose banner)", async () => {
-      mocks.promoteOpportunityToLead.mockReset();
-      mocks.promoteOpportunityToLead.mockRejectedValue(new Error("connect ECONNREFUSED"));
-      const result = await addSelectedLeadgenToAudgenAction([
-        makeLead({ id: "a" }),
-        makeLead({ id: "b" }),
-      ]);
-      expect(result.ok).toBe(false);
-      expect(result.added).toBe(0);
-      expect(result.skipped).toBe(2);
-      expect(result.reason).toBe("lead_promotion_failed");
-      expect(result.message).toMatch(/Could not add any leads to the dashboard queue/);
-    });
-
-    it("uses the SESSION workspaceId for promotion — never any inbound opportunity.workspaceId", async () => {
-      // Adversarial: the inbound lead carries a workspaceId for the
-      // SESSION's own workspace (so it passes the cross-workspace
-      // guard) but we still want to assert that the action passes
-      // SESSION_WORKSPACE as the first arg, not any field on the lead.
-      const lead = {
-        ...makeLead({ id: "trojan" }),
-        workspaceId: "ws_attacker_supplied_value",
-      } as unknown as LeadOpportunity;
-      // The cross-workspace guard would actually filter this out
-      // because the supplied workspaceId differs from SESSION_WORKSPACE.
-      // Use a lead with NO workspaceId (the discovery path's default)
-      // and assert the action sources SESSION_WORKSPACE.
-      const cleanLead = makeLead({ id: "clean" });
-      await addSelectedLeadgenToAudgenAction([cleanLead]);
-      expect(mocks.promoteOpportunityToLead).toHaveBeenCalledWith(
-        SESSION_WORKSPACE,
-        expect.objectContaining({ id: "clean" }),
-      );
-      // Sanity: the adversarial cross-workspace lead is rejected
-      // upstream and never reaches promoteOpportunityToLead.
-      mocks.promoteOpportunityToLead.mockClear();
-      const rejectResult = await addSelectedLeadgenToAudgenAction([lead]);
-      expect(rejectResult.reason).toBe("cross_workspace");
-      expect(mocks.promoteOpportunityToLead).not.toHaveBeenCalled();
-    });
-
-    it("idempotency contract is delegated to promoteOpportunityToLead (called once per click)", async () => {
-      // Re-clicking "Add Selected" on the same opportunity must always
-      // route through promoteOpportunityToLead. The helper itself
-      // enforces (workspaceId, businessName, websiteUrl/phone)
-      // idempotency at the DB layer (covered by the helper-level
-      // tests). Here we just pin that the action delegates rather
-      // than reimplementing the dedup check.
-      const lead = makeLead({ id: "dedupe", businessName: "Same Business" });
-      // First click.
-      mocks.promoteOpportunityToLead.mockResolvedValueOnce({
-        leadId: "cuid_existing",
-        created: true,
-        status: "New",
-      });
-      const first = await addSelectedLeadgenToAudgenAction([lead]);
-      expect(first.added).toBe(1);
-      // Second click. Helper reports "matched existing" via created=false.
-      mocks.promoteOpportunityToLead.mockResolvedValueOnce({
-        leadId: "cuid_existing",
-        created: false,
-        status: "New",
-      });
-      const second = await addSelectedLeadgenToAudgenAction([lead]);
-      // From the action's POV both clicks succeeded; the helper
-      // handled the dedup transparently. Net leads in dashboard: 1.
-      expect(second.added).toBe(1);
-      expect(second.ok).toBe(true);
-      expect(mocks.promoteOpportunityToLead).toHaveBeenCalledTimes(2);
-    });
-
-    it("preserves an in-progress status (Contacted) on re-promotion — does NOT roll back to New", async () => {
-      // Helper-level contract: re-promoting an opportunity whose Lead
-      // already exists at status Contacted/Follow-up/Won/Lost must NOT
-      // reset to New. We mock the helper to return status="Contacted"
-      // (which the helper guarantees by reading the existing row's
-      // status before update). The action surfaces helper outcomes
-      // unchanged.
-      mocks.promoteOpportunityToLead.mockReset();
-      mocks.promoteOpportunityToLead.mockResolvedValue({
-        leadId: "cuid_already_engaged",
-        created: false,
-        status: "Contacted",
-      });
-      const result = await addSelectedLeadgenToAudgenAction([
-        makeLead({ id: "engaged_1", businessName: "Engaged Co" }),
-      ]);
-      expect(result.ok).toBe(true);
-      expect(result.added).toBe(1);
-      // Banner copy should be neutral success (not "added" vs
-      // "refreshed" — the user clicked Add Selected and the lead
-      // is now in their dashboard queue, which is what the banner
-      // truthfully reports).
-      expect(result.message).toMatch(/Added 1 lead/);
     });
   });
 });
