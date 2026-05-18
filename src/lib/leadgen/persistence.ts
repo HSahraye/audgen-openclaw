@@ -657,6 +657,65 @@ export async function bulkUpdateLeadgenStatus(
   );
 }
 
+/**
+ * Translate a list of opportunity IDs (which may be the freshly-persisted
+ * dedicated-table cuids OR the discovery-side synthetic IDs that live in
+ * `LeadgenOpportunity.externalId`) to the actual `LeadgenOpportunity.id`
+ * values required by the `LeadgenActivityLog.opportunityId` foreign key.
+ *
+ * Returns a Map<inputId, dbId> populated for every input ID that resolves.
+ * Inputs that don't resolve are simply absent from the map — callers
+ * should treat that as "skip the activity write for this lead" rather
+ * than passing the synthetic ID through, which triggers the FK violation
+ * observed in production at 11:26 UTC on 2026-05-18 when adding live
+ * Google Places / Yelp leads to AudGen.
+ *
+ * Workspace-scoping note: every read here is gated by
+ * `strictWorkspaceScope(workspaceId)` (commit b8a3975). Synthetic IDs
+ * from a different tenant cannot be resolved against this workspace, so
+ * they will simply be absent from the map and skipped — there is no path
+ * by which this helper can leak cross-tenant opportunity IDs.
+ *
+ * Legacy persistence mode (dedicated tables missing → P2021/P2022): the
+ * `LeadgenActivityLog` FK does not apply because activity logs go to the
+ * `Activity` table instead. We return an identity map letting callers
+ * pass the original IDs straight through to `createLeadgenActivity`,
+ * whose legacy fallback writes them as informational metadata only.
+ */
+export async function resolveLeadgenOpportunityDbIds(
+  workspaceId: string,
+  ids: string[],
+): Promise<Map<string, string>> {
+  const result = new Map<string, string>();
+  if (ids.length === 0) return result;
+
+  return withLeadgenPersistenceFallback(
+    async () => {
+      const rows = await prisma.leadgenOpportunity.findMany({
+        where: {
+          ...strictWorkspaceScope(workspaceId),
+          OR: [{ id: { in: ids } }, { externalId: { in: ids } }],
+        },
+        select: { id: true, externalId: true },
+      });
+      const inputSet = new Set(ids);
+      for (const row of rows) {
+        if (row.externalId && inputSet.has(row.externalId)) {
+          result.set(row.externalId, row.id);
+        }
+        if (inputSet.has(row.id)) {
+          result.set(row.id, row.id);
+        }
+      }
+      return result;
+    },
+    async () => {
+      for (const id of ids) result.set(id, id);
+      return result;
+    },
+  );
+}
+
 export async function createLeadgenActivity(
   workspaceId: string,
   opportunityId: string,

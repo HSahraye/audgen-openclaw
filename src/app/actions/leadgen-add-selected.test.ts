@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => ({
   saveLeadgenOpportunities: vi.fn(),
   createLeadgenActivity: vi.fn(),
   bulkUpdateLeadgenStatus: vi.fn(),
+  resolveLeadgenOpportunityDbIds: vi.fn(),
   revalidatePath: vi.fn(),
   loggerWarn: vi.fn(),
 }));
@@ -46,6 +47,7 @@ vi.mock("@/lib/leadgen/persistence", () => ({
   saveLeadgenOpportunities: mocks.saveLeadgenOpportunities,
   createLeadgenActivity: mocks.createLeadgenActivity,
   bulkUpdateLeadgenStatus: mocks.bulkUpdateLeadgenStatus,
+  resolveLeadgenOpportunityDbIds: mocks.resolveLeadgenOpportunityDbIds,
   createLeadgenSavedView: vi.fn(),
   deleteLeadgenSavedView: vi.fn(),
 }));
@@ -147,6 +149,12 @@ beforeEach(() => {
   // returns 0 because it queries by cuid while inputs are discovery-side ids.
   // This was the silent zero that landed in the production banner.
   mocks.bulkUpdateLeadgenStatus.mockResolvedValue(0);
+  // Default: identity map. Specific tests that exercise the synthetic-id
+  // → dbId translation (the production FK-violation reproducer) override
+  // this with a translated map.
+  mocks.resolveLeadgenOpportunityDbIds.mockImplementation(async (_workspaceId: string, ids: string[]) => {
+    return new Map(ids.map((id) => [id, id]));
+  });
 });
 
 describe("addSelectedLeadgenToAudgenAction", () => {
@@ -300,5 +308,157 @@ describe("addSelectedLeadgenToAudgenAction", () => {
         reason: "cross_workspace",
       }),
     );
+  });
+
+  // REGRESSION GUARD for the production FK violation observed at
+  // 2026-05-18T11:26:01Z when the operator clicked "Add Selected to
+  // AudGen" on live Google Places leads (cafe in alameda ca):
+  //
+  //   prisma.leadgenActivityLog.create()
+  //   Foreign key constraint violated on
+  //   `LeadgenActivityLog_opportunityId_fkey`
+  //
+  // Root cause: live-discovery leads carry SYNTHETIC ids (e.g.
+  // "ChIJ_kEnMd9-j4ARO5OePnaHZ_M" from Google Places, "yelp-3" from
+  // Yelp). saveLeadgenOpportunities upserts those into
+  // LeadgenOpportunity.externalId while the row's actual id is a fresh
+  // cuid. The activity write then tried to use the synthetic id for
+  // LeadgenActivityLog.opportunityId, which has a strict FK on
+  // LeadgenOpportunity.id — crash.
+  //
+  // The fix: resolveLeadgenOpportunityDbIds translates synthetic
+  // externalId → cuid, and the activity loop uses the cuid. This test
+  // pins that contract.
+  describe("FK regression — live discovery synthetic id translation", () => {
+    it("calls createLeadgenActivity with the persisted cuid, NOT the synthetic id, for live-discovery leads", async () => {
+      // Two live Google Places leads with synthetic ids (matches the
+      // production reproducer shape exactly).
+      const live = [
+        makeLead({ id: "ChIJ_kEnMd9-j4ARO5OePnaHZ_M", source: "google_places" }),
+        makeLead({ id: "ChIJ8YZxQONfj4ARYxhLpV2bAxk", source: "google_places" }),
+      ];
+      // Mock the resolver to return the synthetic-id → dbId map that
+      // saveLeadgenOpportunities would produce in production.
+      mocks.resolveLeadgenOpportunityDbIds.mockResolvedValueOnce(
+        new Map([
+          ["ChIJ_kEnMd9-j4ARO5OePnaHZ_M", "cuid_db_lead_1"],
+          ["ChIJ8YZxQONfj4ARYxhLpV2bAxk", "cuid_db_lead_2"],
+        ]),
+      );
+
+      const result = await addSelectedLeadgenToAudgenAction(live);
+      expect(result.ok).toBe(true);
+      expect(result.added).toBe(2);
+
+      // The resolver must be invoked with the SESSION workspaceId (not
+      // any inbound lead.workspaceId) and with the inbound synthetic ids.
+      expect(mocks.resolveLeadgenOpportunityDbIds).toHaveBeenCalledWith(
+        SESSION_WORKSPACE,
+        ["ChIJ_kEnMd9-j4ARO5OePnaHZ_M", "ChIJ8YZxQONfj4ARYxhLpV2bAxk"],
+      );
+
+      // Activity writes must use the resolved dbIds, not the synthetics.
+      expect(mocks.createLeadgenActivity).toHaveBeenCalledTimes(2);
+      expect(mocks.createLeadgenActivity).toHaveBeenNthCalledWith(
+        1,
+        SESSION_WORKSPACE,
+        "cuid_db_lead_1",
+        "added_to_audgen_queue",
+        expect.any(String),
+      );
+      expect(mocks.createLeadgenActivity).toHaveBeenNthCalledWith(
+        2,
+        SESSION_WORKSPACE,
+        "cuid_db_lead_2",
+        "added_to_audgen_queue",
+        expect.any(String),
+      );
+      // No call with a synthetic id is permitted — that path triggers
+      // the production FK violation.
+      const calls = mocks.createLeadgenActivity.mock.calls;
+      for (const [, opportunityId] of calls) {
+        expect(opportunityId).not.toMatch(/^ChIJ/);
+      }
+    });
+
+    it("skips the activity write (with a typed warn) when the resolver cannot translate an inbound id", async () => {
+      // Schema-drift / race scenario: saveLeadgenOpportunities upserted
+      // but the follow-up resolver lookup missed. The lead is still
+      // persisted; we just lose the activity-log entry. The user-facing
+      // count must stand (added > 0) and a structured warn must fire so
+      // the gap shows up in Netlify logs.
+      const live = [
+        makeLead({ id: "ChIJ_unresolved_1", source: "google_places" }),
+      ];
+      mocks.resolveLeadgenOpportunityDbIds.mockResolvedValueOnce(new Map());
+      const result = await addSelectedLeadgenToAudgenAction(live);
+      expect(result.ok).toBe(true);
+      expect(result.added).toBe(1);
+      expect(mocks.createLeadgenActivity).not.toHaveBeenCalled();
+      expect(mocks.loggerWarn).toHaveBeenCalledWith(
+        "leadgen_add_selected_activity_skipped_no_dbid",
+        expect.objectContaining({
+          workspaceId: SESSION_WORKSPACE,
+          inboundId: "ChIJ_unresolved_1",
+        }),
+      );
+    });
+
+    it("isolates per-lead activity-write failures — one FK violation must not crash the batch", async () => {
+      // Three leads. The middle activity write throws (simulates a
+      // surviving FK-violation scenario where the resolver lied). The
+      // batch must still report added=3 because the opportunity rows
+      // themselves are persisted by saveLeadgenOpportunities. A typed
+      // warn must fire for the failed activity row.
+      const live = [
+        makeLead({ id: "lead_a", source: "google_places" }),
+        makeLead({ id: "lead_b", source: "google_places" }),
+        makeLead({ id: "lead_c", source: "google_places" }),
+      ];
+      mocks.resolveLeadgenOpportunityDbIds.mockResolvedValueOnce(
+        new Map([
+          ["lead_a", "cuid_a"],
+          ["lead_b", "cuid_b"],
+          ["lead_c", "cuid_c"],
+        ]),
+      );
+      mocks.createLeadgenActivity.mockReset();
+      mocks.createLeadgenActivity
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error("Foreign key constraint violated"))
+        .mockResolvedValueOnce(undefined);
+
+      const result = await addSelectedLeadgenToAudgenAction(live);
+      expect(result.ok).toBe(true);
+      expect(result.added).toBe(3);
+      expect(mocks.createLeadgenActivity).toHaveBeenCalledTimes(3);
+      expect(mocks.loggerWarn).toHaveBeenCalledWith(
+        "leadgen_add_selected_activity_failed",
+        expect.objectContaining({
+          workspaceId: SESSION_WORKSPACE,
+          inboundId: "lead_b",
+          dbId: "cuid_b",
+          reason: "Foreign key constraint violated",
+        }),
+      );
+    });
+
+    it("preserves workspace strict-scoping — resolver receives the SESSION workspaceId, never any lead.workspaceId", async () => {
+      // Defense-in-depth on top of b8a3975: even if the inbound leads
+      // somehow carry workspaceIds (they shouldn't on the discovery
+      // path, but adversarial inputs cannot be ruled out), the resolver
+      // must always be called with the session-derived workspaceId.
+      // Legitimate cross-workspace leads are filtered out earlier;
+      // here we test the in-workspace path uses the right scope.
+      const lead = makeLead({ id: "lead_q", source: "google_places" });
+      mocks.resolveLeadgenOpportunityDbIds.mockResolvedValueOnce(
+        new Map([["lead_q", "cuid_q"]]),
+      );
+      await addSelectedLeadgenToAudgenAction([lead]);
+      expect(mocks.resolveLeadgenOpportunityDbIds).toHaveBeenCalledWith(
+        SESSION_WORKSPACE,
+        ["lead_q"],
+      );
+    });
   });
 });

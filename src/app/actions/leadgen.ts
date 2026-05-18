@@ -17,6 +17,7 @@ import {
   createLeadgenActivity,
   createLeadgenSavedView,
   deleteLeadgenSavedView,
+  resolveLeadgenOpportunityDbIds,
   saveLeadgenOpportunities,
 } from "@/lib/leadgen/persistence";
 import { discoverLeadgenOpportunities } from "@/lib/leadgen/sources";
@@ -227,21 +228,61 @@ export async function addSelectedLeadgenToAudgenAction(
       workspaceId,
       inWorkspace.map((lead) => ({ ...lead, status: "queued", lastActionAt: now })),
     );
+
+    // Translate the inbound IDs (which for live Google Places / Yelp
+    // discovery are SYNTHETIC ids stored in LeadgenOpportunity.externalId,
+    // not the dedicated-table cuid stored in id) into the dbId required
+    // by the LeadgenActivityLog.opportunityId foreign key. Without this
+    // step the activity write violates LeadgenActivityLog_opportunityId_fkey
+    // (production reproducer: cafe in alameda ca, 2026-05-18T11:26:01Z).
+    const inboundIds = inWorkspace.map((lead) => lead.id);
+    const dbIdMap = await resolveLeadgenOpportunityDbIds(workspaceId, inboundIds);
+
     for (const lead of inWorkspace) {
-      await createLeadgenActivity(
-        workspaceId,
-        lead.id,
-        "added_to_audgen_queue",
-        `Lead added to ${BRANDING_CONFIG.appName} queue.`,
-      );
+      const dbId = dbIdMap.get(lead.id);
+      if (!dbId) {
+        // saveLeadgenOpportunities upserted the row (or threw above), so
+        // a missing entry here means schema drift, a race, or a
+        // dedicated/legacy mode boundary we did not anticipate. Skip
+        // the activity write rather than passing the synthetic ID
+        // through — that would re-trigger the production FK crash.
+        // The lead itself is still persisted; we only lose the
+        // human-readable activity-log entry.
+        logger.warn("leadgen_add_selected_activity_skipped_no_dbid", {
+          workspaceId,
+          inboundId: lead.id,
+        });
+        continue;
+      }
+      try {
+        await createLeadgenActivity(
+          workspaceId,
+          dbId,
+          "added_to_audgen_queue",
+          `Lead added to ${BRANDING_CONFIG.appName} queue.`,
+        );
+      } catch (error) {
+        // Per-lead defensive catch: an FK or other persistence failure
+        // on a single activity row must not crash the entire batch
+        // import. The opportunity is already persisted at this point.
+        logger.warn("leadgen_add_selected_activity_failed", {
+          workspaceId,
+          inboundId: lead.id,
+          dbId,
+          reason: error instanceof Error ? error.message : "unknown",
+        });
+      }
     }
+
     // Best-effort status pass for previously-existing rows. Failure of
     // this pass MUST NOT zero out the user-facing count — the rows are
-    // already persisted by saveLeadgenOpportunities above.
+    // already persisted by saveLeadgenOpportunities above. (Note:
+    // bulkUpdateLeadgenStatus does its own OR-lookup over (id, externalId)
+    // so it is safe to call with the synthetic inbound IDs.)
     try {
       await bulkUpdateLeadgenStatus(
         workspaceId,
-        inWorkspace.map((lead) => lead.id),
+        inboundIds,
         "queued",
         `Queued for ${BRANDING_CONFIG.appName} workflow.`,
       );
