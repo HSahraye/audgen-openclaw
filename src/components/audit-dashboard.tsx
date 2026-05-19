@@ -317,6 +317,13 @@ export function AuditDashboard({
   const [isUpdatingStatus, startStatusTransition] = useTransition();
   const [isSavingNotes, startNotesTransition] = useTransition();
   const [isRegenerating, startRegenerateTransition] = useTransition();
+  // Tracks WHICH lead is currently regenerating so the per-row button
+  // can show a spinner on only that row while keeping the Lead-Notes
+  // panel button in sync. Combined with the global `isRegenerating`
+  // transition flag, this guarantees only one regen runs at a time
+  // (preventing accidental double-charges if a user clicks two rows in
+  // quick succession before the first call returns).
+  const [regeneratingLeadId, setRegeneratingLeadId] = useState<string | null>(null);
   const [copiedLeadId, setCopiedLeadId] = useState("");
   const [copiedPrepLeadId, setCopiedPrepLeadId] = useState("");
   const [notesSavedLeadId, setNotesSavedLeadId] = useState("");
@@ -741,6 +748,7 @@ export function AuditDashboard({
 
   const regenerateLead = (id: string, form?: HTMLFormElement | null) => {
     setActionError("");
+    setRegeneratingLeadId(id);
     const notes = form ? String(new FormData(form).get("notes") ?? "") : undefined;
     startRegenerateTransition(async () => {
       try {
@@ -748,6 +756,10 @@ export function AuditDashboard({
         if (!result.ok) setActionError(result.error ?? "Audit could not be regenerated.");
       } catch (error) {
         setActionError(error instanceof Error ? error.message : "Audit could not be regenerated.");
+      } finally {
+        // Always clear the per-row spinner, even on error — otherwise
+        // the row stays stuck on "Regenerating..." until a page reload.
+        setRegeneratingLeadId(null);
       }
     });
   };
@@ -1335,6 +1347,43 @@ export function AuditDashboard({
                     {lead.phone ? <a href={smsDraftUrl(lead)} onClick={(event) => { event.stopPropagation(); void logOutreachAction(lead.id, "SMS", "Opened SMS draft"); }} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50">SMS</a> : null}
                     {lead.phone ? <a href={whatsappDraftUrl(lead)} target="_blank" onClick={(event) => { event.stopPropagation(); void logOutreachAction(lead.id, "SMS", "Opened WhatsApp draft"); }} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-green-700 transition hover:bg-slate-50">WhatsApp</a> : null}
                     {lead.websiteUrl ? <a href={lead.websiteUrl} target="_blank" onClick={(event) => event.stopPropagation()} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-lime-700 transition hover:bg-slate-50">Website <ExternalLink className="size-4" /></a> : null}
+                    {/*
+                     * Per-row Regenerate (Claude-powered) button. Pinned
+                     * to every lead row so the action is discoverable
+                     * without drilling into the lead-detail panel — the
+                     * buried Lead-Notes button still exists for users
+                     * who already have the panel open.
+                     *
+                     * Disabled state: ANY in-flight regen disables ALL
+                     * per-row buttons (single-in-flight policy) so a
+                     * fast user double-clicking can't burn two LLM
+                     * audits in parallel. The clicked row's button
+                     * shows the spinner; others keep the static label.
+                     */}
+                    <button
+                      type="button"
+                      disabled={isRegenerating || regeneratingLeadId !== null}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        regenerateLead(lead.id);
+                      }}
+                      className="inline-flex items-center gap-1 rounded-xl border border-lime-300 bg-lime-50 px-3 py-2 text-xs font-black text-lime-800 transition hover:bg-lime-100 disabled:opacity-50"
+                      aria-label={
+                        regeneratingLeadId === lead.id
+                          ? `Regenerating audit for ${lead.businessName}`
+                          : `Regenerate audit (Claude-powered) for ${lead.businessName}`
+                      }
+                    >
+                      {regeneratingLeadId === lead.id ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin" /> Regenerating…
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="size-4" /> Regenerate (Claude)
+                        </>
+                      )}
+                    </button>
                     <button type="button" disabled={isDeleting} onClick={(event) => { event.stopPropagation(); deleteLead(lead.id, lead.businessName); }} className="inline-flex items-center gap-1 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100 disabled:opacity-50">
                       {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />} Delete
                     </button>
