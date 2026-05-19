@@ -33,6 +33,7 @@ export const PRICING_TIERS = [
     period: "/mo",
     audits: "20 audits / mo",
     cta: "Get started",
+    highlight: false as const,
   },
   {
     name: "Pro",
@@ -48,6 +49,7 @@ export const PRICING_TIERS = [
     period: "/mo",
     audits: "500 audits / mo",
     cta: "Get started",
+    highlight: false as const,
   },
   {
     name: "Custom",
@@ -55,6 +57,7 @@ export const PRICING_TIERS = [
     period: "",
     audits: "Unlimited + white-label",
     cta: "Contact us",
+    highlight: false as const,
   },
 ] as const;
 
