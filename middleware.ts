@@ -14,6 +14,12 @@ function isInternalPath(pathname: string) {
   if (pathname.startsWith("/accept-invite")) return false;
   if (pathname.startsWith("/_next")) return false;
   if (pathname === "/favicon.ico") return false;
+  // Standalone Netlify Functions (background audit generation, etc.).
+  // These have their own HMAC-based auth (see audit-async.ts) and are
+  // called server-to-server from `regenerateLeadAction`. The fetch
+  // does NOT carry a Better-Auth session cookie, so without this
+  // bypass the middleware would redirect the internal call to /login.
+  if (pathname.startsWith("/.netlify/functions/")) return false;
   return true;
 }
 
@@ -83,6 +89,6 @@ export function middleware(request: NextRequest) {
 // node-server Next.js).
 export const config = {
   matcher: [
-    "/((?!api/health|_next/static|_next/image|favicon\\.ico|icon\\.svg|robots\\.txt|sitemap\\.xml|.*\\.(?:txt|xml|ico|png|jpg|jpeg|svg|gif|webp|woff|woff2|ttf|otf|css|js|map|json)).*)",
+    "/((?!api/health|_next/static|_next/image|favicon\\.ico|icon\\.svg|robots\\.txt|sitemap\\.xml|\\.netlify/functions/|.*\\.(?:txt|xml|ico|png|jpg|jpeg|svg|gif|webp|woff|woff2|ttf|otf|css|js|map|json)).*)",
   ],
 };
