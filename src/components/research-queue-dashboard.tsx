@@ -7,6 +7,7 @@ import { ArrowLeft, ExternalLink, Loader2, Plus, Radar, Search, Sparkles } from 
 import { addResearchQueueItemsAction, convertQueueItemToLeadAction, updateResearchQueueStatusAction } from "@/app/actions/research-queue";
 import { BRAND } from "@/lib/brand";
 import { formatRelativeTime } from "@/lib/utils";
+import { RESEARCH_PAGE_INTRO, ResearchEmptyState } from "@/app/research/research-empty-state";
 
 type QueueStatus = "Queued" | "Researching" | "Audited" | "Converted" | "Skipped";
 
@@ -153,6 +154,7 @@ export function ResearchQueueDashboard({ items }: { items: QueueItem[] }) {
             <Link href="/" className="inline-flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-500 hover:text-slate-950"><ArrowLeft className="size-4" /> Dashboard</Link>
             <p className="mt-3 text-xs font-black uppercase tracking-[0.28em] text-lime-700">{BRAND.productName}</p>
             <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">Lead Research Queue</h1>
+            <p className="mt-2 max-w-2xl text-sm text-slate-600">{RESEARCH_PAGE_INTRO}</p>
           </div>
           <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-950 px-4 py-3 text-white">
             <Radar className="size-5 text-lime-300" />
@@ -198,7 +200,8 @@ export function ResearchQueueDashboard({ items }: { items: QueueItem[] }) {
             </div> : null}
             {actionError ? <p className="mb-3 rounded-2xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{actionError}</p> : null}
             <div className="grid gap-3">
-              {filtered.length === 0 ? <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">No queue items match this filter.</p> : null}
+              {parsed.length === 0 ? <ResearchEmptyState /> : null}
+              {parsed.length > 0 && filtered.length === 0 ? <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">No queue items match this filter.</p> : null}
               {filtered.map((item) => (
                 <div key={item.id} className={`rounded-2xl border bg-white p-4 ${selectedSet.has(item.id) ? "border-lime-400 ring-2 ring-lime-100" : "border-slate-200"}`}>
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">

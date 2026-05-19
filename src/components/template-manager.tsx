@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { archiveTemplateAction, duplicateTemplateAction, saveTemplateAction, seedSystemTemplatesAction } from "@/app/actions/templates";
 import { updateWorkspaceBrandingAction } from "@/app/actions/workspace";
 import { BaseTemplateConfigSchema } from "@/lib/templates/types";
+import { TemplatesEmptyState } from "@/app/templates/templates-empty-state";
 
 type Kind = "audit" | "outreach" | "offer";
 
@@ -52,6 +53,7 @@ export function TemplateManager({
 
   const currentList = templates[kind];
   const selectedTemplate = currentList.find((item) => item.id === selectedId) || currentList[0];
+  const allEmpty = templates.audit.length === 0 && templates.outreach.length === 0 && templates.offer.length === 0;
 
   const initialConfig = useMemo(() => {
     if (selectedTemplate) return selectedTemplate.contentJson;
@@ -155,6 +157,11 @@ export function TemplateManager({
             Seed system templates
           </button>
           <div className="mt-3 space-y-2">
+            {currentList.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-slate-200 p-3 text-xs text-slate-500">
+                No {kind} templates saved. Seed system templates above, or edit the JSON config on the right to save your first one.
+              </p>
+            ) : null}
             {currentList.map((item) => (
               <button
                 key={item.id}
@@ -171,6 +178,7 @@ export function TemplateManager({
       </aside>
 
       <section className="space-y-5">
+        {allEmpty ? <TemplatesEmptyState /> : null}
         <form action={save} className="rounded-2xl border border-slate-200 bg-white p-5">
           <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">Template Editor ({kind})</p>
           <div className="mt-3 grid gap-3 sm:grid-cols-2">

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireWorkspaceRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { SequencesDashboard } from "@/components/sequences-dashboard";
+import { SEQUENCES_PAGE_INTRO } from "@/app/sequences/sequences-empty-state";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,7 @@ export default async function SequencesPage() {
           <div>
             <p className="text-xs font-black uppercase tracking-[0.22em] text-lime-700">Automation</p>
             <h1 className="mt-1 text-2xl font-black">Sequence Builder</h1>
-            <p className="text-sm text-slate-500">Create and manage outbound execution sequences.</p>
+            <p className="mt-1 max-w-2xl text-sm text-slate-600">{SEQUENCES_PAGE_INTRO}</p>
           </div>
           <div className="flex gap-2">
             <Link href="/automation/approvals" className="inline-flex h-10 items-center rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 hover:bg-slate-50">

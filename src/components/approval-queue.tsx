@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { approveOutboundMessageAction, rejectOutboundMessageAction } from "@/app/actions/automation";
+import { ApprovalsEmptyState } from "@/app/automation/approvals/approvals-empty-state";
 
 type ApprovalItem = {
   id: string;
@@ -35,7 +36,7 @@ export function ApprovalQueue({ items }: { items: ApprovalItem[] }) {
 
   return (
     <div className="grid gap-3">
-      {!items.length ? <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">No pending approvals.</p> : null}
+      {!items.length ? <ApprovalsEmptyState /> : null}
       {items.map((item) => (
         <div key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-2">
