@@ -76,7 +76,15 @@ type LeadRow = {
 
 type LeadView = LeadRow & {
   status: LeadStatus;
-  audit: { checks: AuditChecks; websiteSignals: string[]; warnings: string[]; source: string };
+  audit: {
+    checks: AuditChecks;
+    websiteSignals: string[];
+    warnings: string[];
+    source: string;
+    aiGenerated?: boolean;
+    vertical?: string | null;
+    verticalDisplayName?: string | null;
+  };
   assets: GeneratedAssets;
   intelligence?: { momentumScore?: number; urgencyScore?: number; closeProbability?: number } | null;
 };
@@ -1339,6 +1347,15 @@ export function AuditDashboard({
 
           {selected ? (
             <div className="grid gap-6">
+              {selected.audit.aiGenerated ? (
+                <div className="flex items-center gap-2 rounded-2xl border border-lime-200 bg-lime-50 px-4 py-2 text-xs font-black tracking-[0.04em] text-lime-700">
+                  <Sparkles className="size-4" />
+                  AI-generated
+                  {selected.audit.verticalDisplayName ? (
+                    <span className="font-bold text-lime-800">· {selected.audit.verticalDisplayName} vertical</span>
+                  ) : null}
+                </div>
+              ) : null}
               <form key={`offer-${selected.id}`} action={offerFormAction} className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm">
                 <input type="hidden" name="id" value={selected.id} />
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1431,7 +1448,11 @@ export function AuditDashboard({
                     <NotesSaveButton saved={notesSavedLeadId === selected.id} saving={isSavingNotes} />
                     <button type="button" disabled={isRegenerating} onClick={(event) => regenerateLead(selected.id, event.currentTarget.closest("form"))} className="inline-flex h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 text-xs font-black text-slate-700 transition hover:bg-slate-50 disabled:opacity-60">
                       {isRegenerating ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
-                      {isRegenerating ? "Regenerating..." : "Regenerate Audit"}
+                      {isRegenerating
+                        ? "Generating..."
+                        : selected.audit.aiGenerated
+                          ? "Regenerate (Claude-powered)"
+                          : "Generate audit (Claude-powered)"}
                     </button>
                   </div>
                 </div>

@@ -67,6 +67,9 @@ export type ParsedDashboardLead = {
     websiteSignals: string[];
     warnings: string[];
     source: string;
+    aiGenerated: boolean;
+    vertical: string | null;
+    verticalDisplayName: string | null;
     [k: string]: unknown;
   };
   assets: GeneratedAssets;
@@ -100,6 +103,9 @@ type RawAuditJson = {
   websiteSignals?: unknown;
   warnings?: unknown;
   source?: unknown;
+  aiGenerated?: unknown;
+  vertical?: unknown;
+  verticalDisplayName?: unknown;
   [k: string]: unknown;
 };
 
@@ -178,6 +184,10 @@ export function parseLeadForDashboard(lead: DashboardLeadInput): ParsedDashboard
       : [],
     warnings: Array.isArray(parsedAudit.warnings) ? (parsedAudit.warnings as string[]) : [],
     source: typeof parsedAudit.source === "string" ? parsedAudit.source : "unknown",
+    aiGenerated: typeof parsedAudit.aiGenerated === "boolean" ? parsedAudit.aiGenerated : false,
+    vertical: typeof parsedAudit.vertical === "string" ? parsedAudit.vertical : null,
+    verticalDisplayName:
+      typeof parsedAudit.verticalDisplayName === "string" ? parsedAudit.verticalDisplayName : null,
   };
 
   const assets: GeneratedAssets = {

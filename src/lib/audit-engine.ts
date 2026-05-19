@@ -4,6 +4,9 @@ import { enforceAuditGeneration, ensureWorkspaceOperational } from "@/lib/billin
 import { generateLeadIntelligence } from "@/lib/intelligence/engine";
 import { resolveGenerationContext } from "@/lib/generation/context";
 import { resolvePublicSenderName } from "@/lib/branding";
+import { generateLlmAudit, type LlmAuditPayload } from "@/lib/audit/llm-audit-engine";
+import { scrapeBusinessWebsite } from "@/lib/audit/scrape-website";
+import { logger } from "@/lib/logger";
 
 // SECURITY/UX: null inputs (e.g. propagated from FormData.get()) used to
 // crash with "Invalid input: expected string, received null". Preprocess
@@ -243,9 +246,9 @@ export async function generateAudit(rawInput: AuditInput): Promise<AuditResult> 
   )?.[1];
   if (categoryInsight) warnings.push(categoryInsight);
 
-  const checks = toLegacyChecks(input, intelligenceRun.intelligence);
-  const score = scoreLead(checks, input);
-  const local = localAssets(input, checks, score, {
+  const templatedChecks = toLegacyChecks(input, intelligenceRun.intelligence);
+  const score = scoreLead(templatedChecks, input);
+  const local = localAssets(input, templatedChecks, score, {
     brandName,
     senderIdentity,
     offerTemplateName: generationContext.offerTemplate.name,
@@ -258,7 +261,7 @@ export async function generateAudit(rawInput: AuditInput): Promise<AuditResult> 
     outreachStyle: generationContext.outreachTemplate.config.outreachStyle,
     urgencyStyle: generationContext.auditTemplate.config.urgencyStyle,
   });
-  const assets: GeneratedAssets = {
+  const templatedAssets: GeneratedAssets = {
     ...local,
     leadScore: score,
     painPointSummary: intelligenceRun.narrative.painPointSummary || local.painPointSummary,
@@ -266,6 +269,76 @@ export async function generateAudit(rawInput: AuditInput): Promise<AuditResult> 
     presenceLabsOffer: intelligenceRun.narrative.presenceLabsOffer || local.presenceLabsOffer,
     recommendedPackage: intelligenceRun.intelligence.recommendedOffer || local.recommendedPackage,
   };
+
+  // === LLM AUDIT ENGINE INTEGRATION ===
+  // Behaviour:
+  //   * No ANTHROPIC_API_KEY → templated path runs as before, no LLM
+  //     call, no scrape, no extra latency. (This is the default state
+  //     until the operator sets the production env var.)
+  //   * Key set → scrape website + call generateLlmAudit. On success,
+  //     replace assets/checks with LLM output. Findings + executive
+  //     summary are pushed onto the audit's `warnings` array (the
+  //     dashboard's lead-detail panel renders that slot).
+  //   * Any LLM failure (timeout, schema validation, cost cap,
+  //     concurrency cap) returns source=llm-fallback and we keep the
+  //     templated assets/checks. The user-visible behaviour is
+  //     identical to the pre-LLM state.
+  let assets: GeneratedAssets = templatedAssets;
+  let checks: AuditChecks = templatedChecks;
+  let llmPayload: LlmAuditPayload | null = null;
+  const llmEnabled = Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+  if (llmEnabled) {
+    try {
+      const scrape = input.websiteUrl ? await scrapeBusinessWebsite(input.websiteUrl) : null;
+      llmPayload = await generateLlmAudit(
+        {
+          businessName: input.businessName,
+          category: input.category ?? null,
+          location: input.location ?? null,
+          websiteUrl: input.websiteUrl ?? null,
+          phone: null, // not on AuditInput today; left for future plumb-through from leadgen
+          email: null,
+          rating: null,
+          reviewCount: null,
+          scrapedHomepageText: scrape?.homepageText ?? null,
+          scrapedAboutText: scrape?.aboutText ?? null,
+          scrapedContactText: scrape?.contactText ?? null,
+          scraperSignals: scrape
+            ? Object.fromEntries(
+                Object.entries(scrape.signals).map(([k, v]) => [k, typeof v === "boolean" || typeof v === "number" ? v : Boolean(v)]),
+              )
+            : null,
+          workspaceId: rawInput.workspaceId,
+        },
+        {
+          brandName,
+          senderIdentity,
+          packageOptions: Object.values(generationContext.offerTemplate.config.packageLabels || {}).filter(
+            (label): label is string => typeof label === "string" && label.trim().length > 0,
+          ),
+          toneHint: generationContext.auditTemplate.config.tone,
+        },
+      );
+      if (llmPayload.source === "llm") {
+        // Re-anchor the leadScore: the LLM doesn't see workspace
+        // entitlement / scoring rules, so we keep the deterministic
+        // local score on top of the LLM-generated copy.
+        assets = { ...llmPayload.assets, leadScore: score };
+        checks = llmPayload.checks;
+        // Findings render as audit "warnings" — same dashboard slot.
+        warnings.unshift(...llmPayload.findings);
+        if (llmPayload.executiveSummary) warnings.unshift(llmPayload.executiveSummary);
+      }
+    } catch (err) {
+      // Defensive: generateLlmAudit() promises never to throw, but
+      // belt-and-braces. Templated assets stay; the audit ships.
+      logger.error("audit_engine_llm_path_threw_unexpectedly", {
+        reason: err instanceof Error ? err.message.slice(0, 160) : "unknown",
+        workspaceId: rawInput.workspaceId,
+      });
+    }
+  }
+  // === END LLM INTEGRATION ===
 
   const generatedContext = {
     generationVersion: "v4-template-driven",
@@ -319,8 +392,28 @@ export async function generateAudit(rawInput: AuditInput): Promise<AuditResult> 
     },
     providerMetadata: {
       source: intelligenceRun.diagnostics.source,
+      llmSource: llmPayload?.source,
+      llmVertical: llmPayload?.verticalKey,
+      llmVerticalDisplayName: llmPayload?.verticalDisplayName,
+      llmModel: llmPayload?.diagnostics?.model,
+      llmInputTokens: llmPayload?.diagnostics?.inputTokens,
+      llmOutputTokens: llmPayload?.diagnostics?.outputTokens,
+      llmEstimatedCostUsd: llmPayload?.diagnostics?.estimatedCostUsd,
+      llmDurationMs: llmPayload?.diagnostics?.durationMs,
+      llmFallbackReason: llmPayload?.fallbackReason,
     },
   } satisfies NonNullable<AuditResult["generatedContext"]>;
+
+  // Source priority: a successful LLM run brands the audit "claude";
+  // an LLM fallback or no-LLM run keeps the prior intelligence-source
+  // labelling so the dashboard's "Generated with X" copy stays
+  // accurate.
+  const source: AuditResult["source"] =
+    llmPayload?.source === "llm"
+      ? "claude"
+      : intelligenceRun.diagnostics.source === "gemini"
+        ? "intelligence-gemini"
+        : "intelligence-local";
 
   return {
     checks,
@@ -328,7 +421,7 @@ export async function generateAudit(rawInput: AuditInput): Promise<AuditResult> 
     intelligence: intelligenceRun.intelligence,
     websiteSignals: intelligenceRun.diagnostics.websiteSignals,
     warnings,
-    source: intelligenceRun.diagnostics.source === "gemini" ? "intelligence-gemini" : "intelligence-local",
+    source,
     generatedContext,
   };
 }

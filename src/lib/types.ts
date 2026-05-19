@@ -86,5 +86,15 @@ export type GenerationContextSnapshot = {
   };
   providerMetadata: {
     source: string;
+    /** Set when the LLM audit engine produced (or attempted to produce) the assets. */
+    llmSource?: "llm" | "llm-fallback";
+    llmVertical?: string;
+    llmVerticalDisplayName?: string;
+    llmModel?: string;
+    llmInputTokens?: number;
+    llmOutputTokens?: number;
+    llmEstimatedCostUsd?: number;
+    llmDurationMs?: number;
+    llmFallbackReason?: string;
   };
 };
