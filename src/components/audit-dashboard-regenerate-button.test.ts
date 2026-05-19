@@ -2,23 +2,25 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-// REGRESSION GUARD for the discoverability bug reported on 2026-05-18:
-// the operator spent 20 minutes hunting for a way to regenerate an
-// audit. The "Regenerate (Claude-powered)" button existed only inside
-// the `{selected ? (...)}` lead-detail panel — buried below the AI
-// badge, the Offer & Pricing card, and the short-slug form. With 8+
-// leads in the queue, the panel was off-screen.
+// REGRESSION GUARD — Updated 2026-05-19 when the per-row button cluster
+// was consolidated from 10+ buttons to 7 actions:
 //
-// The fix added a per-row Regenerate button to every lead in the
-// queue. These tests pin the contract so a future refactor cannot
-// silently re-bury it.
+//   [Status] · [Internal prep] · [Open Audit / Generate Audit ✨] · [↻ icon]
+//   · [Outreach ▾] · [Website] · [Delete]
 //
-// We use static source-code analysis here rather than a React render
-// because the repo doesn't have jsdom + @testing-library/react
-// installed (cf. account-indicator.test.tsx, audit-dashboard-utils
-// .test.ts — same pattern). A real render test would catch a few more
-// cases but at the cost of a new dep + jsdom config; static checks
-// catch the field-and-discoverability issues that broke production.
+// The "Regenerate (Claude)" per-row label was replaced by:
+//   - A smart primary button: "Generate Audit ✨" (no audit) / "Open Audit" (audit exists)
+//   - A secondary ↻ icon button (aria-label "Regenerate audit for …") visible only when
+//     an audit exists.
+//
+// Original context: the operator spent 20 minutes hunting for a way to
+// regenerate an audit because the only button was inside the buried
+// lead-detail panel. The per-row button added in the previous fix
+// (commit pinned by these tests) is preserved — now as a cleaner ↻ icon.
+//
+// Static source analysis is used throughout (see account-indicator.test.tsx,
+// audit-dashboard-utils.test.ts for the same pattern) since the repo does
+// not have jsdom/@testing-library/react set up.
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 const SOURCE = readFileSync(
@@ -26,74 +28,88 @@ const SOURCE = readFileSync(
   "utf8",
 );
 
-describe("dashboard per-row Regenerate (Claude) button", () => {
+describe("dashboard per-row action buttons — consolidated button cluster", () => {
   it("renders inside the lead-queue map (not just the buried lead-detail panel)", () => {
     // The lead queue is `filteredLeads.map((lead) => ...)`; the buried
-    // lead-detail panel is wrapped in `{selected ? (...)}`. Locate the
-    // INDEX of each block and assert the per-row Regenerate button
-    // appears BEFORE the `{selected ?` boundary, i.e. inside the row map.
+    // lead-detail panel is wrapped in `{selected ? (`. Locate the INDEX of
+    // each block and assert the per-row Generate Audit / Open Audit / ↻
+    // buttons all appear BEFORE the `{selected ?` boundary.
     const leadMapIdx = SOURCE.indexOf("filteredLeads.map((lead)");
     const selectedPanelIdx = SOURCE.indexOf("{selected ? (");
-    const regenerateButtonIdx = SOURCE.indexOf("Regenerate (Claude)");
     expect(leadMapIdx, "filteredLeads.map should be present").toBeGreaterThan(0);
     expect(selectedPanelIdx, "{selected ? ( panel should be present").toBeGreaterThan(0);
-    expect(regenerateButtonIdx, "Regenerate (Claude) label should be present").toBeGreaterThan(0);
+
+    // "Generate Audit" (primary button when no audit exists)
+    const generateAuditIdx = SOURCE.indexOf("Generate Audit");
+    expect(generateAuditIdx, '"Generate Audit" label should be present').toBeGreaterThan(0);
     expect(
-      regenerateButtonIdx > leadMapIdx && regenerateButtonIdx < selectedPanelIdx,
-      "Regenerate button must render inside the per-row map, BEFORE the `{selected ? ...}` lead-detail panel",
+      generateAuditIdx > leadMapIdx && generateAuditIdx < selectedPanelIdx,
+      "Generate Audit button must render inside the per-row map, BEFORE {selected ? ...}",
+    ).toBe(true);
+
+    // "Open Audit" (primary button when audit exists)
+    const openAuditIdx = SOURCE.indexOf("Open Audit");
+    expect(openAuditIdx, '"Open Audit" label should be present').toBeGreaterThan(0);
+    expect(
+      openAuditIdx > leadMapIdx && openAuditIdx < selectedPanelIdx,
+      "Open Audit button must render inside the per-row map, BEFORE {selected ? ...}",
+    ).toBe(true);
+
+    // ↻ icon button via data-testid
+    const rowRegenIdx = SOURCE.indexOf("row-regenerate-icon");
+    expect(rowRegenIdx, 'data-testid="row-regenerate-icon" should be present').toBeGreaterThan(0);
+    expect(
+      rowRegenIdx > leadMapIdx && rowRegenIdx < selectedPanelIdx,
+      "↻ icon button must render inside the per-row map, BEFORE {selected ? ...}",
     ).toBe(true);
   });
 
-  it("button click is wired to the existing regenerateLead handler (no new server action)", () => {
-    // Find the per-row button and confirm the onClick targets
-    // `regenerateLead(lead.id)` — the same handler the buried Lead
-    // Notes button uses, which calls regenerateLeadAction → generateAudit
-    // → generateLlmAudit (when ANTHROPIC_API_KEY is set).
-    const regenerateLabelIdx = SOURCE.indexOf("Regenerate (Claude)");
-    expect(regenerateLabelIdx, "label not found").toBeGreaterThan(0);
-    // Look back ~1500 chars from the label to find the button definition.
-    const buttonChunk = SOURCE.slice(Math.max(0, regenerateLabelIdx - 1500), regenerateLabelIdx + 200);
-    expect(buttonChunk).toMatch(/onClick={\(event\) => {[\s\S]*?regenerateLead\(lead\.id\)/);
-    // Stop event propagation so the click doesn't ALSO select the row.
-    expect(buttonChunk).toMatch(/event\.stopPropagation\(\)/);
+  it("↻ icon button and Generate Audit button are wired to the existing regenerateLead handler", () => {
+    // Both the ↻ icon and the "Generate Audit" button must call regenerateLead(lead.id).
+    // Locate data-testid="row-regenerate-icon" and look nearby for the onClick.
+    const regenIconIdx = SOURCE.indexOf("row-regenerate-icon");
+    expect(regenIconIdx, "row-regenerate-icon not found").toBeGreaterThan(0);
+    const iconChunk = SOURCE.slice(Math.max(0, regenIconIdx - 600), regenIconIdx + 200);
+    expect(iconChunk).toMatch(/onClick={\(event\) => {[\s\S]*?regenerateLead\(lead\.id\)/);
+    expect(iconChunk).toMatch(/event\.stopPropagation\(\)/);
+
+    // Generate Audit button also calls regenerateLead(lead.id).
+    // Anchor on the Sparkles icon + text (button body, not the nearby comment).
+    const generateAuditBtnIdx = SOURCE.indexOf('<Sparkles className="size-4" /> Generate Audit');
+    expect(generateAuditBtnIdx, "Generate Audit ✨ button text should be present").toBeGreaterThan(0);
+    const generateChunk = SOURCE.slice(Math.max(0, generateAuditBtnIdx - 800), generateAuditBtnIdx + 200);
+    expect(generateChunk).toMatch(/regenerateLead\(lead\.id\)/);
   });
 
-  it("button is disabled while ANY regen is in flight (single-in-flight policy)", () => {
-    // Prevents the user from double-clicking and being charged for two
-    // LLM audits when the network round-trip is 60+ seconds. The
-    // disabled gate combines:
-    //   - `isRegenerating`            (server action in flight, ~500ms)
-    //   - `regeneratingLeadId !== null` (any row enqueued; full single-in-flight gate)
-    //   - `lead.audit.pending === true` (per-row Background Function still running)
-    const regenerateLabelIdx = SOURCE.indexOf("Regenerate (Claude)");
-    const buttonChunk = SOURCE.slice(Math.max(0, regenerateLabelIdx - 2500), regenerateLabelIdx + 200);
-    expect(buttonChunk).toMatch(/disabled=\{[\s\S]*?isRegenerating[\s\S]*?\}/);
-    expect(buttonChunk).toMatch(/regeneratingLeadId !== null/);
-    // The third condition (audit.pending) is verified by the
-    // pending-state test in audit-dashboard-pending-state.test.ts.
+  it("↻ icon button is disabled while ANY regen is in flight (single-in-flight policy)", () => {
+    // The ↻ icon preserves the three-part disabled gate:
+    //   1. isRegenerating   (server action in flight)
+    //   2. regeneratingLeadId !== null   (any row queued — full policy)
+    //   3. lead.audit.pending === true   (BG Function still running)
+    const regenIconIdx = SOURCE.indexOf("row-regenerate-icon");
+    const iconChunk = SOURCE.slice(Math.max(0, regenIconIdx - 800), regenIconIdx + 100);
+    expect(iconChunk).toMatch(/disabled=\{[\s\S]*?isRegenerating[\s\S]*?\}/);
+    expect(iconChunk).toMatch(/regeneratingLeadId !== null/);
+    expect(iconChunk).toMatch(/lead\.audit\.pending\s*===\s*true/);
   });
 
-  it("the active row OR a row with audit.pending shows a spinner; other rows keep the static label", () => {
-    const buttonChunk = SOURCE.slice(
-      Math.max(0, SOURCE.indexOf("Regenerate (Claude)") - 2500),
-      SOURCE.indexOf("Regenerate (Claude)") + 600,
-    );
-    // Active row → spinner + "Generating…"
-    // The label was unified to "Generating…" so the same UX applies
-    // whether the action is in flight (transient) OR the Background
-    // Function is still running (audit.pending).
-    expect(buttonChunk).toMatch(/regeneratingLeadId === lead\.id/);
-    expect(buttonChunk).toMatch(/Loader2 className="size-4 animate-spin"/);
-    expect(buttonChunk).toMatch(/Generating…/);
-    // Inactive rows → Sparkles icon + label
-    expect(buttonChunk).toMatch(/Sparkles className="size-4"/);
+  it("primary button shows 'Generating…' when the row is pending, 'Open Audit' when ai-generated, 'Generate Audit ✨' otherwise", () => {
+    // Find the IIFE that drives the smart primary button.
+    const isThisRowPendingIdx = SOURCE.indexOf("isThisRowPending");
+    expect(isThisRowPendingIdx, "isThisRowPending should be present").toBeGreaterThan(0);
+    const buttonBlock = SOURCE.slice(isThisRowPendingIdx, isThisRowPendingIdx + 2500);
+    // Pending state
+    expect(buttonBlock).toMatch(/Generating…/);
+    expect(buttonBlock).toMatch(/Loader2 className="size-4 animate-spin"/);
+    // Audit exists
+    expect(buttonBlock).toMatch(/Open Audit/);
+    expect(buttonBlock).toMatch(/window\.open\(auditUrl\(lead\)/);
+    // No audit
+    expect(buttonBlock).toMatch(/Generate Audit/);
+    expect(buttonBlock).toMatch(/Sparkles className="size-4"/);
   });
 
-  it("regenerateLead handler always clears the per-row spinner (even on throw) via try/finally", () => {
-    // If the LLM call throws and we don't reset regeneratingLeadId,
-    // the row stays stuck on "Regenerating…" until a page reload —
-    // that's the exact failure mode the operator avoided when they
-    // burned 20 minutes hunting for the button to begin with.
+  it("regenerateLead handler always clears the per-row spinner via try/finally", () => {
     const handlerIdx = SOURCE.indexOf("const regenerateLead =");
     expect(handlerIdx, "regenerateLead handler not found").toBeGreaterThan(0);
     const handlerChunk = SOURCE.slice(handlerIdx, handlerIdx + 1200);
@@ -102,10 +118,9 @@ describe("dashboard per-row Regenerate (Claude) button", () => {
     expect(handlerChunk).toMatch(/setRegeneratingLeadId\(null\)/);
   });
 
-  it("preserves the buried lead-detail panel button (regression: do not delete the existing surface)", () => {
-    // The task explicitly said NOT to remove the buried button —
-    // other UI surfaces or screen readers may rely on it. Pin its
-    // continued existence inside the {selected ? (...)} block.
+  it("preserves the buried lead-detail panel regenerate button (regression: do not delete the existing surface)", () => {
+    // The lead-detail panel (buried below the fold) still has its own
+    // Regenerate button so users who have the panel open don't lose that surface.
     const selectedPanelIdx = SOURCE.indexOf("{selected ? (");
     const generateAuditClaudePoweredIdx = SOURCE.indexOf("Generate audit (Claude-powered)");
     expect(generateAuditClaudePoweredIdx, "buried panel label should still be present").toBeGreaterThan(0);
@@ -116,25 +131,34 @@ describe("dashboard per-row Regenerate (Claude) button", () => {
   });
 
   it("button reuses the same regenerateLeadAction (no new server action created)", () => {
-    // Safety rule: do not introduce a new server action just to add
-    // the per-row button. The chain regenerateLead → regenerateLeadAction
-    // → generateAudit → generateLlmAudit must remain the only path.
     expect(SOURCE).toMatch(/import\s*\{[^}]*regenerateLeadAction[^}]*\}\s*from\s*"@\/app\/actions\/leads"/);
     // Exactly one definition of `const regenerateLead =` in the file
-    // (otherwise we'd have a forked handler).
     const matches = SOURCE.match(/const\s+regenerateLead\s*=/g) ?? [];
     expect(matches.length).toBe(1);
   });
 
-  it("aria-label on the per-row button names the business and the action", () => {
-    // Accessibility — the row has many similar-shape buttons; the
-    // aria-label must distinguish "Regenerate audit for {business}"
-    // from "Delete {business}" for screen-reader users.
-    const buttonChunk = SOURCE.slice(
-      Math.max(0, SOURCE.indexOf("Regenerate (Claude)") - 1500),
-      SOURCE.indexOf("Regenerate (Claude)") + 200,
-    );
-    expect(buttonChunk).toMatch(/aria-label=/);
-    expect(buttonChunk).toMatch(/Regenerate audit \(Claude-powered\) for \$\{lead\.businessName\}/);
+  it("↻ icon button has an aria-label naming the business and the action (accessibility)", () => {
+    const regenIconIdx = SOURCE.indexOf("row-regenerate-icon");
+    const iconChunk = SOURCE.slice(Math.max(0, regenIconIdx - 800), regenIconIdx + 100);
+    expect(iconChunk).toMatch(/aria-label=/);
+    expect(iconChunk).toMatch(/Regenerate audit for \$\{lead\.businessName\}/);
+  });
+
+  it("the Outreach dropdown is present in the per-row map and contains Email, SMS, WhatsApp menu items", () => {
+    const leadMapIdx = SOURCE.indexOf("filteredLeads.map((lead)");
+    const selectedPanelIdx = SOURCE.indexOf("{selected ? (");
+    const outreachBtnIdx = SOURCE.indexOf("row-outreach-btn");
+    expect(outreachBtnIdx, 'data-testid="row-outreach-btn" should be present').toBeGreaterThan(0);
+    expect(
+      outreachBtnIdx > leadMapIdx && outreachBtnIdx < selectedPanelIdx,
+      "Outreach button must be inside the per-row map",
+    ).toBe(true);
+    // The dropdown menu contains all three outreach options
+    const menuIdx = SOURCE.indexOf("row-outreach-menu");
+    expect(menuIdx, 'data-testid="row-outreach-menu" should be present').toBeGreaterThan(0);
+    const menuChunk = SOURCE.slice(menuIdx, menuIdx + 1500);
+    expect(menuChunk).toMatch(/Email/);
+    expect(menuChunk).toMatch(/SMS/);
+    expect(menuChunk).toMatch(/WhatsApp/);
   });
 });

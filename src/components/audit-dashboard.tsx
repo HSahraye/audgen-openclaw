@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, memo, useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import { ArrowUpRight, BarChart3, CheckCircle2, Copy, ExternalLink, Filter, Loader2, Mail, Phone, Radar, Search, Share2, Sparkles, Trash2, XCircle } from "lucide-react";
+import { ArrowUpRight, BarChart3, CheckCircle2, ChevronDown, Copy, ExternalLink, Filter, Loader2, Mail, Phone, Radar, RefreshCw, Search, Share2, Sparkles, Trash2, XCircle } from "lucide-react";
 import { createCaseStudyAction } from "@/app/actions/case-studies";
 import { startLeadSequenceAction } from "@/app/actions/automation";
 import { createLeadAction, deleteLeadAction, importLeadsCsvAction, logOutreachAction, regenerateLeadAction, updateLeadNotesAction, updateLeadOfferAction, updateLeadShortSlugAction, updateLeadStatusAction } from "@/app/actions/leads";
@@ -343,6 +343,7 @@ export function AuditDashboard({
   const [enrollLeadId, setEnrollLeadId] = useState("");
   const [enrollSequenceId, setEnrollSequenceId] = useState("");
   const [enrollSchedule, setEnrollSchedule] = useState("");
+  const [openOutreachLeadId, setOpenOutreachLeadId] = useState("");
   const [createLeadState, setCreateLeadState] = useState(initialState);
   const [isCreatingLead, startCreateLeadTransition] = useTransition();
   const [isEnrolling, startEnrollTransition] = useTransition();
@@ -1333,93 +1334,113 @@ export function AuditDashboard({
                     <span className="mt-1 block text-xs font-bold text-slate-400">Created {new Date(lead.createdAt).toISOString().slice(0, 10)} • Views {lead.viewCount}{lead.lastViewedAt ? ` • Last viewed ${formatRelativeTime(lead.lastViewedAt)}` : ""}{lead.paymentClickCount ? ` • Payment clicks ${lead.paymentClickCount}` : ""}</span>
                   </span>
                   <span className="flex flex-wrap items-center gap-2 max-w-full lg:col-span-2">
+                    {/* 1 — Status */}
                     <select value={lead.status} disabled={isUpdatingStatus} onClick={(event) => event.stopPropagation()} onChange={(event) => updateStatus(lead.id, event.target.value as LeadStatus)} className="h-9 rounded-xl border border-slate-200 bg-white px-2 text-xs font-black text-slate-700 outline-none focus:border-lime-400">
                       {statuses.map((status) => <option key={status} value={status}>{status}</option>)}
                     </select>
+                    {/* 2 — Internal prep (distinct intent: private call-prep page, not the public audit) */}
                     <Link href={buildPrepPath({ id: lead.id, shortSlug: lead.shortSlug })} target="_blank" onClick={(event) => event.stopPropagation()} className="inline-flex items-center gap-1 rounded-xl bg-lime-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-lime-200">
                       📋 Internal prep
                     </Link>
-                    <button type="button" onClick={(event) => { event.stopPropagation(); void copyAuditUrl(lead); }} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50">
-                      <Share2 className="size-4" /> {copiedLeadId === lead.id ? "Public audit link copied!" : "Copy public audit link"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        void copyPrepUrl(lead);
-                      }}
-                      className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50"
-                    >
-                      {copiedPrepLeadId === lead.id ? "Internal prep link copied!" : "Copy internal prep link"}
-                    </button>
+                    {/* 3 — Open Audit / Generate Audit ✨ (smart primary button) */}
+                    {(() => {
+                      const isThisRowPending = lead.audit.pending === true || regeneratingLeadId === lead.id;
+                      if (isThisRowPending) {
+                        return (
+                          <button type="button" disabled className="inline-flex items-center gap-1 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white opacity-60" aria-label={`Generating audit for ${lead.businessName}`}>
+                            <Loader2 className="size-4 animate-spin" /> Generating…
+                          </button>
+                        );
+                      }
+                      if (lead.audit.aiGenerated) {
+                        return (
+                          <button
+                            type="button"
+                            onClick={(event) => { event.stopPropagation(); window.open(auditUrl(lead), "_blank"); }}
+                            className="inline-flex items-center gap-1 rounded-xl bg-slate-950 px-3 py-2 text-xs font-black text-white transition hover:bg-slate-800"
+                            aria-label={`Open public audit for ${lead.businessName}`}
+                          >
+                            Open Audit
+                          </button>
+                        );
+                      }
+                      return (
+                        <button
+                          type="button"
+                          disabled={isRegenerating || regeneratingLeadId !== null || lead.audit.pending === true}
+                          onClick={(event) => { event.stopPropagation(); regenerateLead(lead.id); }}
+                          className="inline-flex items-center gap-1 rounded-xl bg-lime-300 px-3 py-2 text-xs font-black text-slate-950 transition hover:bg-lime-200 disabled:opacity-50"
+                          aria-label={`Generate Audit for ${lead.businessName}`}
+                        >
+                          <Sparkles className="size-4" /> Generate Audit ✨
+                        </button>
+                      );
+                    })()}
+                    {/* 4 — ↻ Regenerate icon — only when an AI audit already exists.
+                     *   Single-in-flight policy: disabled whenever any regen is running
+                     *   so a double-click can't burn two LLM credits in parallel. */}
+                    {lead.audit.aiGenerated ? (
+                      <button
+                        type="button"
+                        disabled={isRegenerating || regeneratingLeadId !== null || lead.audit.pending === true}
+                        onClick={(event) => { event.stopPropagation(); regenerateLead(lead.id); }}
+                        className="inline-flex items-center justify-center rounded-xl border border-lime-300 bg-lime-50 p-2 transition hover:bg-lime-100 disabled:opacity-50"
+                        title="Regenerate audit with fresh Claude analysis"
+                        aria-label={`Regenerate audit for ${lead.businessName}`}
+                        data-testid="row-regenerate-icon"
+                      >
+                        <RefreshCw className="size-4 text-lime-800" />
+                      </button>
+                    ) : null}
+                    {/* 5 — Add to Sequence */}
                     {activeSequences.length ? (
                       <button
                         type="button"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setEnrollLeadId(lead.id);
-                        }}
+                        onClick={(event) => { event.stopPropagation(); setEnrollLeadId(lead.id); }}
                         className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50"
                       >
                         Add to Sequence
                       </button>
                     ) : null}
-                    <a href={emailDraftUrl(lead)} target="_blank" onClick={(event) => { event.stopPropagation(); markEmailDrafted(lead.id); }} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50">
-                      <Mail className="size-4" /> Send to client
-                    </a>
-                    {lead.phone ? <a href={smsDraftUrl(lead)} onClick={(event) => { event.stopPropagation(); void logOutreachAction(lead.id, "SMS", "Opened SMS draft"); }} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50">SMS</a> : null}
-                    {lead.phone ? <a href={whatsappDraftUrl(lead)} target="_blank" onClick={(event) => { event.stopPropagation(); void logOutreachAction(lead.id, "SMS", "Opened WhatsApp draft"); }} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-green-700 transition hover:bg-slate-50">WhatsApp</a> : null}
-                    {lead.websiteUrl ? <a href={lead.websiteUrl} target="_blank" onClick={(event) => event.stopPropagation()} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-lime-700 transition hover:bg-slate-50">Website <ExternalLink className="size-4" /></a> : null}
-                    {/*
-                     * Per-row Regenerate (Claude-powered) button. Pinned
-                     * to every lead row so the action is discoverable
-                     * without drilling into the lead-detail panel — the
-                     * buried Lead-Notes button still exists for users
-                     * who already have the panel open.
-                     *
-                     * Disabled state: ANY in-flight regen disables ALL
-                     * per-row buttons (single-in-flight policy) so a
-                     * fast user double-clicking can't burn two LLM
-                     * audits in parallel. The clicked row's button
-                     * shows the spinner; others keep the static label.
-                     */}
-                    <button
-                      type="button"
-                      // Disabled when:
-                      //   1. The action call is in flight (transient ~200ms)
-                      //   2. ANY row's regen is enqueued (single-in-flight)
-                      //   3. THIS row already has a Background Function
-                      //      running on it (audit.pending true; cleared
-                      //      automatically when the BG function completes,
-                      //      or after 5 minutes of staleness).
-                      disabled={
-                        isRegenerating
-                        || regeneratingLeadId !== null
-                        || lead.audit.pending === true
-                      }
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        regenerateLead(lead.id);
-                      }}
-                      className="inline-flex items-center gap-1 rounded-xl border border-lime-300 bg-lime-50 px-3 py-2 text-xs font-black text-lime-800 transition hover:bg-lime-100 disabled:opacity-50"
-                      aria-label={
-                        lead.audit.pending === true
-                          ? `Audit regenerating for ${lead.businessName}`
-                          : regeneratingLeadId === lead.id
-                            ? `Regenerating audit for ${lead.businessName}`
-                            : `Regenerate audit (Claude-powered) for ${lead.businessName}`
-                      }
+                    {/* 6 — Outreach dropdown: Email / SMS / WhatsApp consolidated */}
+                    <div
+                      className="relative"
+                      onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) window.setTimeout(() => setOpenOutreachLeadId(""), 100); }}
                     >
-                      {lead.audit.pending === true || regeneratingLeadId === lead.id ? (
-                        <>
-                          <Loader2 className="size-4 animate-spin" /> Generating…
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="size-4" /> Regenerate (Claude)
-                        </>
-                      )}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={(event) => { event.stopPropagation(); setOpenOutreachLeadId(openOutreachLeadId === lead.id ? "" : lead.id); }}
+                        className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 transition hover:bg-slate-50"
+                        aria-label={`Outreach options for ${lead.businessName}`}
+                        data-testid="row-outreach-btn"
+                      >
+                        Outreach <ChevronDown className="size-3" />
+                      </button>
+                      {openOutreachLeadId === lead.id ? (
+                        <div
+                          className="absolute left-0 top-full z-20 mt-1 min-w-[140px] rounded-2xl border border-slate-200 bg-white p-1.5 shadow-lg"
+                          onClick={(event) => { event.stopPropagation(); setOpenOutreachLeadId(""); }}
+                          data-testid="row-outreach-menu"
+                        >
+                          <a href={emailDraftUrl(lead)} target="_blank" onClick={() => markEmailDrafted(lead.id)} className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-50">
+                            <Mail className="size-3.5" /> Email
+                          </a>
+                          {lead.phone ? (
+                            <a href={smsDraftUrl(lead)} onClick={() => { void logOutreachAction(lead.id, "SMS", "Opened SMS draft"); }} className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-black text-slate-700 hover:bg-slate-50">
+                              SMS
+                            </a>
+                          ) : null}
+                          {lead.phone ? (
+                            <a href={whatsappDraftUrl(lead)} target="_blank" onClick={() => { void logOutreachAction(lead.id, "SMS", "Opened WhatsApp draft"); }} className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-black text-green-700 hover:bg-slate-50">
+                              WhatsApp
+                            </a>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                    {/* 7 — Website */}
+                    {lead.websiteUrl ? <a href={lead.websiteUrl} target="_blank" onClick={(event) => event.stopPropagation()} className="inline-flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-lime-700 transition hover:bg-slate-50">Website <ExternalLink className="size-4" /></a> : null}
+                    {/* 8 — Delete */}
                     <button type="button" disabled={isDeleting} onClick={(event) => { event.stopPropagation(); deleteLead(lead.id, lead.businessName); }} className="inline-flex items-center gap-1 rounded-xl border border-rose-100 bg-rose-50 px-3 py-2 text-xs font-black text-rose-700 transition hover:bg-rose-100 disabled:opacity-50">
                       {isDeleting ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />} Delete
                     </button>

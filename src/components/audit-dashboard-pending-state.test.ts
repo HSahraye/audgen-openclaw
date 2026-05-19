@@ -157,26 +157,27 @@ describe("dashboard polling effect — pinned by static-source-code analysis", (
     expect(DASHBOARD_SOURCE).toMatch(/return\s*\(\)\s*=>\s*window\.clearInterval\(intervalId\)/);
   });
 
-  it("per-row Regenerate button is disabled when audit.pending is true (single-in-flight per row)", () => {
-    // The button disable must include audit.pending so a row whose
-    // background regeneration is in flight cannot be re-triggered
-    // even by a fresh page load.
-    const regenerateLabelIdx = DASHBOARD_SOURCE.indexOf("Regenerate (Claude)");
-    expect(regenerateLabelIdx).toBeGreaterThan(0);
+  it("↻ icon button is disabled when audit.pending is true (single-in-flight per row)", () => {
+    // The consolidated ↻ icon button (data-testid="row-regenerate-icon") must
+    // include lead.audit.pending in its disabled gate so a row whose BG
+    // Function regeneration is in flight cannot be re-triggered even by a
+    // fresh page load.
+    const regenIconIdx = DASHBOARD_SOURCE.indexOf("row-regenerate-icon");
+    expect(regenIconIdx, "row-regenerate-icon data-testid should be present").toBeGreaterThan(0);
     const buttonChunk = DASHBOARD_SOURCE.slice(
-      Math.max(0, regenerateLabelIdx - 2000),
-      regenerateLabelIdx + 200,
+      Math.max(0, regenIconIdx - 800),
+      regenIconIdx + 100,
     );
     expect(buttonChunk).toMatch(/disabled=\{[\s\S]*?lead\.audit\.pending\s*===\s*true/);
   });
 
-  it("per-row button shows 'Generating…' label when audit.pending is true (UX confirmation that work is in flight)", () => {
-    const regenerateLabelIdx = DASHBOARD_SOURCE.indexOf("Regenerate (Claude)");
-    const buttonChunk = DASHBOARD_SOURCE.slice(
-      Math.max(0, regenerateLabelIdx - 2000),
-      regenerateLabelIdx + 600,
-    );
-    expect(buttonChunk).toMatch(/lead\.audit\.pending\s*===\s*true[\s\S]*?Generating…/);
+  it("per-row primary button shows 'Generating…' label when audit.pending is true (UX confirmation that work is in flight)", () => {
+    // The smart primary button uses isThisRowPending = lead.audit.pending === true || …
+    // and when true it renders a spinner with "Generating…".
+    const isThisRowPendingIdx = DASHBOARD_SOURCE.indexOf("isThisRowPending");
+    expect(isThisRowPendingIdx, "isThisRowPending should be present").toBeGreaterThan(0);
+    const buttonBlock = DASHBOARD_SOURCE.slice(isThisRowPendingIdx, isThisRowPendingIdx + 1000);
+    expect(buttonBlock).toMatch(/lead\.audit\.pending\s*===\s*true[\s\S]*?Generating…/);
   });
 });
 
