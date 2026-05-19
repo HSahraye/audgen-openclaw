@@ -358,7 +358,7 @@ export async function signUpWithEmailPassword(input: {
       update: {},
       create: {
         workspaceId: workspace.id,
-        brandName: "Presence Labs",
+        brandName: "AuditGen",
         defaultTone: "consultative",
         defaultOfferStyle: "outcome-focused",
       },

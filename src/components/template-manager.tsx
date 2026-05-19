@@ -239,7 +239,7 @@ export function TemplateManager({
           <div className="mt-3 grid gap-3 sm:grid-cols-2">
             <label className="grid gap-1 text-xs font-black text-slate-600">
               Public company name
-              <input name="publicCompanyName" defaultValue={workspaceSettings.publicCompanyName || "Presence Labs"} placeholder="Presence Labs" className="h-10 rounded-xl border border-slate-200 px-3 text-sm font-semibold" />
+              <input name="publicCompanyName" defaultValue={workspaceSettings.publicCompanyName || "AuditGen"} placeholder="AuditGen" className="h-10 rounded-xl border border-slate-200 px-3 text-sm font-semibold" />
             </label>
             <label className="grid gap-1 text-xs font-black text-slate-600">
               Internal brand label (optional)

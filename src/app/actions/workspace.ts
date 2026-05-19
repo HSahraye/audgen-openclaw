@@ -90,7 +90,7 @@ export async function createWorkspaceAction(formData: FormData) {
   await prisma.workspaceSettings.create({
     data: {
       workspaceId: workspace.id,
-      brandName: "Presence Labs",
+      brandName: "AuditGen",
       defaultTone: "consultative",
       defaultOfferStyle: "outcome-focused",
       senderIdentity: "Team",
@@ -271,7 +271,7 @@ export async function updateWorkspaceBrandingAction(formData: FormData) {
   if (!parsed.success) return { ok: false, error: "Invalid branding settings." };
 
   try {
-    const resolvedBrandName = parsed.data.publicCompanyName?.trim() || "Presence Labs";
+    const resolvedBrandName = parsed.data.publicCompanyName?.trim() || "AuditGen";
     await prisma.$transaction([
       prisma.workspace.update({
         where: { id: session.workspaceId },

@@ -171,7 +171,7 @@ export default function AboutPage() {
 
       <footer className="mx-auto max-w-4xl px-6 py-10 text-xs text-slate-500">
         <p>
-          © {new Date().getFullYear()} Presence Labs. AuditGen is an AI Sales
+          © {new Date().getFullYear()} AuditGen. AuditGen is an AI Sales
           OS for agencies and inside-sales teams.
         </p>
       </footer>

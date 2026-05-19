@@ -7,7 +7,7 @@ import { getCurrentSession } from "@/lib/auth";
 /**
  * Platform-admin gate.
  *
- * "Admin" here means **platform operator** (Presence Labs staff), not
+ * "Admin" here means **platform operator** (AuditGen staff), not
  * "workspace owner". A workspace owner has elevated rights inside their own
  * workspace; they must NOT be able to view cross-tenant ops data.
  *

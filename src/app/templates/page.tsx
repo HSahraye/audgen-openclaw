@@ -31,7 +31,7 @@ export default async function TemplatesPage() {
         </div>
         <TemplateManager
           workspaceSettings={{
-            publicCompanyName: settings?.brandName || "Presence Labs",
+            publicCompanyName: settings?.brandName || "AuditGen",
             brandName: settings?.brandName || "",
             senderIdentity: settings?.senderIdentity || "",
             ctaLabelPrimary: settings?.ctaLabelPrimary || "",

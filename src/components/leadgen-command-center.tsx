@@ -483,7 +483,7 @@ export function LeadGenCommandCenter({
           </Link>
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div className="max-w-3xl">
-              <p className="text-xs font-black uppercase tracking-[0.28em] text-lime-700">Presence Labs</p>
+              <p className="text-xs font-black uppercase tracking-[0.28em] text-lime-700">AuditGen</p>
               <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">LeadGen Command Center</h1>
               <p className="mt-2 text-sm text-slate-600">
                 Find high-fit local businesses, qualify their online presence gaps, and move the best opportunities into your {BRANDING_CONFIG.appName} sales engine.
