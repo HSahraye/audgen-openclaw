@@ -88,6 +88,14 @@ export type LlmAuditPayload = {
   openingPitch: string;
   checks: AuditChecks;
   assets: GeneratedAssets;
+  /**
+   * The LLM's recommended package price (whole dollars). Surfaced
+   * separately from `assets.recommendedPackage` so renderers can show
+   * a pricing recommendation tied to the actual findings rather than
+   * the bucket-based `estimatedDealValue` lookup. Undefined on the
+   * fallback path.
+   */
+  recommendedPrice?: number;
   /** When source=llm-fallback, populated with a short reason string. */
   fallbackReason?: string;
   /** Diagnostic — populated only when source=llm. */
@@ -482,6 +490,12 @@ export async function generateLlmAudit(
     openingPitch: parsed.openingPitch,
     checks: parsed.checks,
     assets: projectAssetsFromAuditResponse(parsed, vertical),
+    // The LLM's pricing recommendation, surfaced for renderer
+    // consumption so the audit/prep pages can display the
+    // findings-driven price instead of the static bucket-based
+    // `estimatedDealValue` lookup. See `audit-engine.ts` integration
+    // and the `/audit/[id]` + `/prep/[id]` renderers.
+    recommendedPrice: parsed.packagePrice,
     diagnostics: {
       model: DEFAULT_AUDIT_MODEL,
       inputTokens,

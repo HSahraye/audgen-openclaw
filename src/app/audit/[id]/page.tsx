@@ -85,20 +85,48 @@ export default async function ClientAuditPage({
     : null;
   const template = await resolveTemplate(brandingWorkspaceId ?? "", "audit", lead.category);
 
-  const audit = JSON.parse(lead.auditJson) as { checks: AuditChecks; websiteSignals: string[]; warnings: string[]; source: string };
+  // Defensive parse: the auditJson shape evolved (LLM fields added in
+  // 9fd20a4: aiGenerated, vertical, verticalDisplayName) but legacy
+  // rows persist with the older shape. Treat new fields as optional;
+  // the dashboard's parseLeadForDashboard helper does the same.
+  const audit = JSON.parse(lead.auditJson) as {
+    checks: AuditChecks;
+    websiteSignals: string[];
+    warnings: string[];
+    source: string;
+    aiGenerated?: boolean;
+    vertical?: string | null;
+    verticalDisplayName?: string | null;
+  };
   const assets = JSON.parse(lead.assetsJson) as GeneratedAssets;
+  // The audit was Claude-generated when source matches OR the
+  // aiGenerated flag is set (the BG function sets both; older
+  // sync writes only set source). Either signal is sufficient.
+  const isLlmAudit = audit.source === "claude" || audit.aiGenerated === true;
   let generationContext: {
     branding?: { brandName?: string; auditIntroCopy?: string; auditOutroCopy?: string; ctaLabelPrimary?: string; ctaLabelSecondary?: string };
+    providerMetadata?: { llmRecommendedPrice?: number; llmVerticalDisplayName?: string };
   } | null = null;
   if (lead.generatedContextJson) {
     try {
       generationContext = JSON.parse(lead.generatedContextJson) as {
         branding?: { brandName?: string; auditIntroCopy?: string; auditOutroCopy?: string; ctaLabelPrimary?: string; ctaLabelSecondary?: string };
+        providerMetadata?: { llmRecommendedPrice?: number; llmVerticalDisplayName?: string };
       };
     } catch {
       generationContext = null;
     }
   }
+  // verticalDisplayName precedence: auditJson (BG function's direct
+  // copy) → generatedContext.providerMetadata (set by audit-engine
+  // for both paths) → null. Either source is acceptable; pick
+  // whichever is present.
+  const verticalDisplayName =
+    (typeof audit.verticalDisplayName === "string" && audit.verticalDisplayName)
+    || (typeof generationContext?.providerMetadata?.llmVerticalDisplayName === "string"
+      ? generationContext.providerMetadata.llmVerticalDisplayName
+      : null)
+    || null;
   const brandName = resolvePublicSenderName(
     {
       publicCompanyName: generationContext?.branding?.brandName || workspaceSettings?.brandName || null,
@@ -114,10 +142,40 @@ export default async function ClientAuditPage({
   const strengths = getLeadStrengths(lead);
   const tone = scoreCopy(lead.score);
   const selectedPackage = getRecommendedOffer(lead) || lead.packageName || assets.recommendedPackage;
-  const selectedPrice = estimatedDealValue(selectedPackage, lead.customPrice);
+  // Pricing reconciliation: when the LLM ran, prefer its findings-
+  // driven `packagePrice` recommendation over the bucket-based
+  // `estimatedDealValue` lookup so the price displayed here agrees
+  // with the prep-page Proposal Intelligence card. Fall back to the
+  // bucket lookup when no LLM price is available (templated path).
+  const llmRecommendedPrice = generationContext?.providerMetadata?.llmRecommendedPrice;
+  const selectedPrice =
+    isLlmAudit && typeof llmRecommendedPrice === "number" && llmRecommendedPrice > 0
+      ? llmRecommendedPrice
+      : estimatedDealValue(selectedPackage, lead.customPrice);
   const passed = strengths.length || labels.filter(([key]) => audit.checks[key]).length;
   const failed = painPoints.length || labels.length - labels.filter(([key]) => audit.checks[key]).length;
   const closeProbability = getCloseProbability(lead);
+
+  // LLM findings extraction. The audit-engine.ts integration unshifts
+  // `llmPayload.executiveSummary` then `llmPayload.findings` onto
+  // `audit.warnings` when the LLM ran (see the LLM hook in
+  // audit-engine.ts). For an LLM-generated audit, the first warning
+  // entry is the executive summary; the next 5-8 are the
+  // vertical-specific findings; anything after is templated diagnostic
+  // overflow we don't render here. For a templated audit, this list
+  // is empty and the legacy structured-sections block renders below.
+  const llmExecutiveSummary = isLlmAudit && audit.warnings.length > 0 ? audit.warnings[0] : null;
+  const llmFindings =
+    isLlmAudit && audit.warnings.length > 1
+      ? audit.warnings
+        .slice(1)
+        .filter((entry) => typeof entry === "string" && entry.trim().length > 0)
+        // Cap at 8 findings — the LLM is schema-constrained to 5-8;
+        // any tail entries past that are templated diagnostics
+        // unshifted by the engine, which the legacy renderer handled
+        // and we don't want to surface here as "AI findings".
+        .slice(0, 8)
+      : [];
   const sectionPlan = template.config.sectionOrder?.length
     ? template.config.sectionOrder
     : ["executiveSummary", "revenueOpportunities", "trustIssues", "conversionBlockers", "seoOpportunities", "quickWins", "recommendedNextSteps"];
@@ -149,6 +207,12 @@ export default async function ClientAuditPage({
                 <div className="inline-flex items-center gap-2 rounded-full border border-lime-300/25 bg-lime-300/10 px-4 py-2 text-sm font-bold text-lime-100">
                   <Sparkles className="size-4" /> Prepared for {lead.businessName}
                 </div>
+                {isLlmAudit ? (
+                  <div className="inline-flex items-center gap-2 rounded-full border border-lime-200/40 bg-lime-300/15 px-4 py-2 text-sm font-bold text-lime-100">
+                    <Sparkles className="size-4" />
+                    AI-generated{verticalDisplayName ? ` · ${verticalDisplayName} vertical` : ""}
+                  </div>
+                ) : null}
                 <div className="inline-flex items-center rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm font-bold text-white/60">
                   Last updated: {formatRelativeTime(lead.updatedAt)}
                 </div>
@@ -211,63 +275,123 @@ export default async function ClientAuditPage({
         </div>
       </section>
 
-      <section className="px-5 pb-6 sm:px-8 lg:px-12">
-        <div className="mx-auto max-w-6xl rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-sm font-black uppercase tracking-[0.22em] text-lime-700">Structured Intelligence Sections</p>
-          <div className="mt-4 grid gap-4 md:grid-cols-2">
-            {sectionPlan.includes("executiveSummary") ? (
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <h3 className="font-black">Executive summary</h3>
-                <p className="mt-2 text-sm text-slate-700">{assets.painPointSummary}</p>
-              </div>
+      {isLlmAudit ? (
+        // LLM-DRIVEN STRUCTURED SECTIONS
+        // Source: `audit.warnings` (executiveSummary + 5-8 findings,
+        // pushed by audit-engine.ts when the LLM ran) and
+        // `assets.proposalOutline` (the LLM's 6-step deliverable
+        // outline). Bypasses the legacy `getLeadScores` /
+        // `getPrimaryPainPoints` selectors entirely so we never surface
+        // templated "Trust score: 100/100" or "Page payload appears
+        // heavy" copy on an audit that the LLM actually wrote.
+        <section className="px-5 pb-6 sm:px-8 lg:px-12">
+          <div className="mx-auto max-w-6xl rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex items-center gap-2">
+              <Sparkles className="size-5 text-lime-700" />
+              <p className="text-sm font-black uppercase tracking-[0.22em] text-lime-700">
+                AI-generated audit findings{verticalDisplayName ? ` · ${verticalDisplayName} vertical` : ""}
+              </p>
+            </div>
+            {llmExecutiveSummary ? (
+              <p className="mt-4 text-base leading-7 text-slate-800">{llmExecutiveSummary}</p>
+            ) : (
+              <p className="mt-4 text-base leading-7 text-slate-800">{assets.painPointSummary}</p>
+            )}
+            {llmFindings.length > 0 ? (
+              <ol className="mt-6 space-y-4">
+                {llmFindings.map((finding, i) => (
+                  <li key={i} className="flex gap-4 rounded-2xl bg-slate-50 p-4">
+                    <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-lime-300 text-xs font-black text-slate-950">
+                      {i + 1}
+                    </span>
+                    <p className="text-sm leading-6 text-slate-700">{finding}</p>
+                  </li>
+                ))}
+              </ol>
             ) : null}
-            {sectionPlan.includes("revenueOpportunities") ? (
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <h3 className="font-black">Revenue opportunities</h3>
-                <p className="mt-2 text-sm text-slate-700">{assets.likelyMoneyLost}</p>
-              </div>
-            ) : null}
-            {sectionPlan.includes("trustIssues") ? (
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <h3 className="font-black">Trust issues</h3>
-                <p className="mt-2 text-sm text-slate-700">
-                  Trust score: {scores.trust}/100. {painPoints.find((item) => /trust|review|https/i.test(item)) || "Improve visible proof, reviews, and credibility markers."}
-                </p>
-              </div>
-            ) : null}
-            {sectionPlan.includes("conversionBlockers") ? (
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <h3 className="font-black">Conversion blockers</h3>
-                <p className="mt-2 text-sm text-slate-700">
-                  Conversion score: {scores.conversion}/100. {painPoints.slice(0, 2).join(" · ") || "Clarify CTA and contact pathway."}
-                </p>
-              </div>
-            ) : null}
-            {sectionPlan.includes("seoOpportunities") ? (
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <h3 className="font-black">SEO opportunities</h3>
-                <p className="mt-2 text-sm text-slate-700">SEO score: {scores.seo}/100. Prioritize title/meta quality, local relevance, and schema coverage.</p>
-              </div>
-            ) : null}
-            {sectionPlan.includes("quickWins") ? (
-              <div className="rounded-2xl bg-slate-50 p-4">
-                <h3 className="font-black">Quick wins</h3>
-                <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
-                  {painPoints.slice(0, 3).map((item) => <li key={item}>{item}</li>)}
-                </ul>
-              </div>
-            ) : null}
-            {sectionPlan.includes("recommendedNextSteps") || sectionPlan.includes("nextSteps") ? (
-              <div className="rounded-2xl bg-slate-50 p-4 md:col-span-2">
-                <h3 className="font-black">Recommended next steps</h3>
-                <p className="mt-2 text-sm text-slate-700">
-                  Start with {selectedPackage} and resolve the top conversion + trust blockers in the next 2-3 weeks.
-                </p>
+            {assets.proposalOutline?.length > 0 ? (
+              <div className="mt-8 rounded-2xl border border-lime-100 bg-lime-50/40 p-5">
+                <h3 className="font-black text-slate-950">Recommended next steps</h3>
+                <ol className="mt-3 space-y-2">
+                  {assets.proposalOutline.map((step, i) => (
+                    <li key={i} className="flex gap-3 text-sm leading-6 text-slate-700">
+                      <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-slate-950 text-[10px] font-black text-white">
+                        {i + 1}
+                      </span>
+                      <span>{step}</span>
+                    </li>
+                  ))}
+                </ol>
               </div>
             ) : null}
           </div>
-        </div>
-      </section>
+        </section>
+      ) : (
+        // LEGACY TEMPLATED STRUCTURED SECTIONS — only renders when no
+        // LLM audit has been generated for this lead. These cards
+        // compute trust/conversion/SEO score buckets from the
+        // intelligence selectors and read pain-points from
+        // `getPrimaryPainPoints`. Preserved verbatim so the templated
+        // path keeps rendering identically for workspaces that have
+        // not enabled the LLM engine.
+        <section className="px-5 pb-6 sm:px-8 lg:px-12">
+          <div className="mx-auto max-w-6xl rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-sm font-black uppercase tracking-[0.22em] text-lime-700">Structured Intelligence Sections</p>
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              {sectionPlan.includes("executiveSummary") ? (
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <h3 className="font-black">Executive summary</h3>
+                  <p className="mt-2 text-sm text-slate-700">{assets.painPointSummary}</p>
+                </div>
+              ) : null}
+              {sectionPlan.includes("revenueOpportunities") ? (
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <h3 className="font-black">Revenue opportunities</h3>
+                  <p className="mt-2 text-sm text-slate-700">{assets.likelyMoneyLost}</p>
+                </div>
+              ) : null}
+              {sectionPlan.includes("trustIssues") ? (
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <h3 className="font-black">Trust issues</h3>
+                  <p className="mt-2 text-sm text-slate-700">
+                    Trust score: {scores.trust}/100. {painPoints.find((item) => /trust|review|https/i.test(item)) || "Improve visible proof, reviews, and credibility markers."}
+                  </p>
+                </div>
+              ) : null}
+              {sectionPlan.includes("conversionBlockers") ? (
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <h3 className="font-black">Conversion blockers</h3>
+                  <p className="mt-2 text-sm text-slate-700">
+                    Conversion score: {scores.conversion}/100. {painPoints.slice(0, 2).join(" · ") || "Clarify CTA and contact pathway."}
+                  </p>
+                </div>
+              ) : null}
+              {sectionPlan.includes("seoOpportunities") ? (
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <h3 className="font-black">SEO opportunities</h3>
+                  <p className="mt-2 text-sm text-slate-700">SEO score: {scores.seo}/100. Prioritize title/meta quality, local relevance, and schema coverage.</p>
+                </div>
+              ) : null}
+              {sectionPlan.includes("quickWins") ? (
+                <div className="rounded-2xl bg-slate-50 p-4">
+                  <h3 className="font-black">Quick wins</h3>
+                  <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-slate-700">
+                    {painPoints.slice(0, 3).map((item) => <li key={item}>{item}</li>)}
+                  </ul>
+                </div>
+              ) : null}
+              {sectionPlan.includes("recommendedNextSteps") || sectionPlan.includes("nextSteps") ? (
+                <div className="rounded-2xl bg-slate-50 p-4 md:col-span-2">
+                  <h3 className="font-black">Recommended next steps</h3>
+                  <p className="mt-2 text-sm text-slate-700">
+                    Start with {selectedPackage} and resolve the top conversion + trust blockers in the next 2-3 weeks.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="px-5 pb-6 sm:px-8 lg:px-12">
         <div className="mx-auto max-w-6xl rounded-[2rem] border border-amber-200 bg-gradient-to-br from-amber-50 to-rose-50 p-6 shadow-sm">

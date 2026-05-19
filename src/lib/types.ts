@@ -96,5 +96,13 @@ export type GenerationContextSnapshot = {
     llmEstimatedCostUsd?: number;
     llmDurationMs?: number;
     llmFallbackReason?: string;
+    /**
+     * The LLM's findings-driven pricing recommendation (whole
+     * dollars). When set, both the `/audit/[id]` and `/prep/[id]`
+     * renderers prefer it over the bucket-based
+     * `estimatedDealValue(packageName)` lookup so the pitch in the
+     * deal-snapshot card and the audit page header agree.
+     */
+    llmRecommendedPrice?: number;
   };
 };

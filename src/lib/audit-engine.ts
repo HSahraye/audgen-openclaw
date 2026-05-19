@@ -401,6 +401,10 @@ export async function generateAudit(rawInput: AuditInput): Promise<AuditResult> 
       llmEstimatedCostUsd: llmPayload?.diagnostics?.estimatedCostUsd,
       llmDurationMs: llmPayload?.diagnostics?.durationMs,
       llmFallbackReason: llmPayload?.fallbackReason,
+      llmRecommendedPrice:
+        llmPayload?.source === "llm" && typeof llmPayload?.recommendedPrice === "number"
+          ? llmPayload.recommendedPrice
+          : undefined,
     },
   } satisfies NonNullable<AuditResult["generatedContext"]>;
 

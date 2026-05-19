@@ -74,9 +74,48 @@ export default async function MeetingPrepPage({ params }: { params: Promise<{ id
   );
 
   const assets = JSON.parse(lead.assetsJson) as GeneratedAssets;
-  const audit = JSON.parse(lead.auditJson) as { checks: AuditChecks; websiteSignals: string[]; warnings: string[]; source: string };
+  const audit = JSON.parse(lead.auditJson) as {
+    checks: AuditChecks;
+    websiteSignals: string[];
+    warnings: string[];
+    source: string;
+    aiGenerated?: boolean;
+    vertical?: string | null;
+    verticalDisplayName?: string | null;
+  };
+  // Load `generatedContextJson` so we can read the LLM's pricing
+  // recommendation (`providerMetadata.llmRecommendedPrice`) and
+  // verticalDisplayName fallback. The audit-engine writes both
+  // fields when the LLM ran.
+  type PrepGenerationContext = {
+    providerMetadata?: { llmRecommendedPrice?: number; llmVerticalDisplayName?: string };
+  };
+  let generationContext: PrepGenerationContext | null = null;
+  if (lead.generatedContextJson) {
+    try {
+      generationContext = JSON.parse(lead.generatedContextJson) as PrepGenerationContext;
+    } catch {
+      generationContext = null;
+    }
+  }
+  const isLlmAudit = audit.source === "claude" || audit.aiGenerated === true;
+  const llmRecommendedPrice = generationContext?.providerMetadata?.llmRecommendedPrice;
+  const verticalDisplayName =
+    (typeof audit.verticalDisplayName === "string" && audit.verticalDisplayName)
+    || (typeof generationContext?.providerMetadata?.llmVerticalDisplayName === "string"
+      ? generationContext.providerMetadata.llmVerticalDisplayName
+      : null)
+    || null;
   const intelligence = getLeadIntelligence(lead);
-  const price = estimatedDealValue(lead.packageName, lead.customPrice);
+  // Pricing reconciliation: same rule as the public audit page —
+  // when an LLM ran, prefer its findings-driven `packagePrice`
+  // recommendation over the bucket-based `estimatedDealValue` lookup
+  // so the deal-snapshot card and the Proposal Intelligence card show
+  // the same number.
+  const price =
+    isLlmAudit && typeof llmRecommendedPrice === "number" && llmRecommendedPrice > 0
+      ? llmRecommendedPrice
+      : estimatedDealValue(lead.packageName, lead.customPrice);
   const [outreachTemplate, offerTemplate] = await Promise.all([
     resolveTemplate(workspaceId, "outreach", lead.category),
     resolveTemplate(workspaceId, "offer", lead.category),
@@ -153,7 +192,13 @@ ${senderCompanyName}`;
               <h1 className="text-lg font-black">{lead.businessName}</h1>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-slate-500">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+            {isLlmAudit ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-lime-100 px-3 py-1 text-xs font-black text-lime-700">
+                <Sparkles className="size-3" />
+                AI-generated{verticalDisplayName ? ` · ${verticalDisplayName}` : ""}
+              </span>
+            ) : null}
             {lead.category && <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold">{lead.category}</span>}
             {lead.location && <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-bold"><MapPin className="size-3" />{lead.location}</span>}
           </div>
