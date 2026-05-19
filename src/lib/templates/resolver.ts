@@ -12,7 +12,14 @@ import {
   type ResolvedTemplate,
   type TemplateKind,
 } from "@/lib/templates/types";
-import { strictWorkspaceScope } from "@/lib/workspace";
+// IMPORT NOTE: pull `strictWorkspaceScope` directly from the pure
+// `@/lib/workspace-scope` module so this resolver — and everything
+// that imports it (notably `@/lib/generation/context`, which is
+// loaded by `generateAudit` inside the Netlify Background Function
+// bundle) — does NOT transitively pull in `next/headers` via
+// `@/lib/workspace`. See `@/lib/workspace-scope.ts` header for the
+// 2026-05-19 production crash post-mortem.
+import { strictWorkspaceScope } from "@/lib/workspace-scope";
 
 const CACHE_TTL_MS = 60_000;
 const templateCache = new Map<string, { expiresAt: number; value: ResolvedTemplate }>();

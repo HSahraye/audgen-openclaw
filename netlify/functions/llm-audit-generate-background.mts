@@ -33,6 +33,27 @@
 // Imports use the @/ alias path so esbuild resolves them through the
 // project's tsconfig path mapping. The Background Function bundle
 // includes Prisma + Anthropic SDK (configured in netlify.toml).
+//
+// CRITICAL: every import in this file MUST be runtime-agnostic.
+// Standalone Netlify Functions do NOT include the Next.js runtime,
+// so any transitive import of `next/headers` / `next/cookies` /
+// `next/server` / `next/navigation` will crash the function at
+// module-load with `ERR_MODULE_NOT_FOUND`. On 2026-05-19 ~12:43 PT
+// this exact failure mode left the Mohka House lead stuck in
+// "Generating..." for hours because the function imported
+// `strictWorkspaceScope` from `@/lib/workspace`, which in turn
+// imports `cookies` from `next/headers`. The fix moves the pure
+// scope helpers into `@/lib/workspace-scope`. Pinned by
+// `src/lib/workspace-runtime-isolation.test.ts`.
+
+// Boot-time sentinel: prove module-load succeeded BEFORE the handler
+// body runs. If this line never appears in Netlify function logs,
+// the bundle is failing to load and a `next/*` import has crept
+// back in (or some other top-level module-load error). Use this as
+// the first signal in any "function silently dying" investigation.
+console.log(
+  JSON.stringify({ event: "bg_module_loaded", at: new Date().toISOString() }),
+);
 
 import { generateAudit } from "@/lib/audit-engine";
 import {
@@ -42,7 +63,7 @@ import {
 } from "@/lib/audit/audit-async";
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { strictWorkspaceScope } from "@/lib/workspace";
+import { strictWorkspaceScope } from "@/lib/workspace-scope";
 
 export default async (req: Request): Promise<Response> => {
   const secret = process.env.AUDIT_INTERNAL_SECRET?.trim();

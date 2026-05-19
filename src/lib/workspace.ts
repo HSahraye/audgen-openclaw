@@ -2,6 +2,17 @@ import { prisma } from "@/lib/prisma";
 import { getEnv } from "@/lib/env";
 import { cookies } from "next/headers";
 
+// Re-export the pure scope helpers from `@/lib/workspace-scope` so
+// existing call sites (server actions, page components, route
+// handlers) keep working unchanged. Code that runs OUTSIDE the
+// Next.js runtime — Background Functions, standalone scripts —
+// should import the helpers directly from `@/lib/workspace-scope`
+// to avoid pulling this file's `next/headers` import into the
+// bundle. Bundle-load failure mode pinned by
+// `src/lib/middleware-invariants.test.ts` and
+// `src/lib/workspace-runtime-isolation.test.ts`.
+export { strictWorkspaceScope, withWorkspaceFallbackScope } from "@/lib/workspace-scope";
+
 const DEFAULT_WORKSPACE_SLUG_FALLBACK = "default";
 const DEFAULT_WORKSPACE_NAME_FALLBACK = "Default Workspace";
 
@@ -60,29 +71,6 @@ export async function getWorkspaceContextForUser(userId: string): Promise<Worksp
   return getWorkspaceContext();
 }
 
-/**
- * SECURITY NOTE.
- *
- * Historically this helper returned `OR: [{ workspaceId }, { workspaceId: null }]`
- * so legacy rows that pre-dated the multi-tenant migration would still surface
- * in the UI. That is a cross-tenant data-leak hazard once a real tenant exists
- * with orphan rows in the table.
- *
- * We now scope strictly to the caller's workspaceId by default. The legacy
- * orphan-row inclusion can be re-enabled explicitly via the env flag
- * `ALLOW_WORKSPACE_NULL_FALLBACK=true` to ease backfill, but it should be
- * disabled in production.
- *
- * The companion helper `strictWorkspaceScope` is preferred in new code.
- */
-export function withWorkspaceFallbackScope(workspaceId: string) {
-  if (process.env.ALLOW_WORKSPACE_NULL_FALLBACK === "true") {
-    return { OR: [{ workspaceId }, { workspaceId: null }] };
-  }
-  return { workspaceId };
-}
-
-/** Always-strict workspace scope. Use this in new code. */
-export function strictWorkspaceScope(workspaceId: string) {
-  return { workspaceId };
-}
+// strictWorkspaceScope + withWorkspaceFallbackScope live in
+// `@/lib/workspace-scope` (pure, runtime-agnostic) and are
+// re-exported above for backward compatibility.
