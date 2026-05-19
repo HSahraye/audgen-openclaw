@@ -48,10 +48,24 @@ import {
 
 const DEFAULT_AUDIT_MODEL = process.env.ANTHROPIC_MODEL_AUDIT || "claude-sonnet-4-6";
 const DEFAULT_CLASSIFIER_MODEL = process.env.ANTHROPIC_MODEL_CLASSIFIER || "claude-haiku-4-5";
-const HARD_TIMEOUT_MS = 30_000;
-const MAX_TOKENS_AUDIT = 4_000;
+
+// Audit-call hard timeout. Sonnet 4.6 generating ~3000-3500 output tokens
+// (the typical full-schema audit response) takes ~35-50 seconds at
+// ~80-120 tok/sec. The original 30s was too aggressive and caused both
+// attempts to abort during the smoke test on 2026-05-18 23:56 UTC.
+// 90s gives comfortable headroom; classifier (~10 tokens) finishes
+// in 1-3s and gets a tighter cap.
+function readPositiveIntEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+const HARD_TIMEOUT_MS = readPositiveIntEnv("ANTHROPIC_AUDIT_TIMEOUT_MS", 90_000);
+const CLASSIFIER_TIMEOUT_MS = readPositiveIntEnv("ANTHROPIC_CLASSIFIER_TIMEOUT_MS", 15_000);
+const MAX_TOKENS_AUDIT = readPositiveIntEnv("ANTHROPIC_AUDIT_MAX_TOKENS", 4_000);
 const MAX_TOKENS_CLASSIFIER = 16;
-const MAX_CONCURRENT_PER_WORKSPACE = 10;
+const MAX_CONCURRENT_PER_WORKSPACE = readPositiveIntEnv("ANTHROPIC_AUDIT_MAX_CONCURRENT", 10);
 
 // Anthropic Sonnet 4.6 list pricing as of 2026-05-18: $3/MTok input,
 // $15/MTok output. Worst-case 8000 input + 4000 output ≈
@@ -285,7 +299,7 @@ async function classifyVerticalLlm(
         },
         { signal: abortController.signal },
       ),
-      10_000,
+      CLASSIFIER_TIMEOUT_MS,
       abortController,
     );
     const block = resp.content?.[0];
