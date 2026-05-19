@@ -13,6 +13,20 @@
 
 [functions]
   node_bundler = "esbuild"
+  # Bundle Prisma's generated client + schema so any standalone Netlify
+  # Function (notably the LLM background function below) can talk to the
+  # DB. Without this, a freshly-deployed function fails on first call
+  # with `@prisma/client did not initialize yet`.
+  included_files = [
+    "node_modules/.prisma/client/**",
+    "prisma/schema.prisma",
+  ]
+
+[functions."llm-audit-generate-background"]
+  # Background Functions can run up to 15 minutes; we cap at 4 minutes
+  # because the LLM call is 30-90s and a runaway call would otherwise
+  # bill compute time we don't need.
+  timeout = 240
 
 # DevOps Cache Buster: Phase 4 Part B Engine Activation - May 16, 2026
 

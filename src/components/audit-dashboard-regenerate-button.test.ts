@@ -61,22 +61,30 @@ describe("dashboard per-row Regenerate (Claude) button", () => {
   it("button is disabled while ANY regen is in flight (single-in-flight policy)", () => {
     // Prevents the user from double-clicking and being charged for two
     // LLM audits when the network round-trip is 60+ seconds. The
-    // disabled gate is `isRegenerating || regeneratingLeadId !== null`
-    // so the moment one row is clicked, ALL Regenerate buttons disable.
+    // disabled gate combines:
+    //   - `isRegenerating`            (server action in flight, ~500ms)
+    //   - `regeneratingLeadId !== null` (any row enqueued; full single-in-flight gate)
+    //   - `lead.audit.pending === true` (per-row Background Function still running)
     const regenerateLabelIdx = SOURCE.indexOf("Regenerate (Claude)");
-    const buttonChunk = SOURCE.slice(Math.max(0, regenerateLabelIdx - 1500), regenerateLabelIdx + 200);
-    expect(buttonChunk).toMatch(/disabled={isRegenerating \|\| regeneratingLeadId !== null}/);
+    const buttonChunk = SOURCE.slice(Math.max(0, regenerateLabelIdx - 2500), regenerateLabelIdx + 200);
+    expect(buttonChunk).toMatch(/disabled=\{[\s\S]*?isRegenerating[\s\S]*?\}/);
+    expect(buttonChunk).toMatch(/regeneratingLeadId !== null/);
+    // The third condition (audit.pending) is verified by the
+    // pending-state test in audit-dashboard-pending-state.test.ts.
   });
 
-  it("the active row shows a spinner; other rows keep the static label", () => {
+  it("the active row OR a row with audit.pending shows a spinner; other rows keep the static label", () => {
     const buttonChunk = SOURCE.slice(
-      Math.max(0, SOURCE.indexOf("Regenerate (Claude)") - 1500),
-      SOURCE.indexOf("Regenerate (Claude)") + 400,
+      Math.max(0, SOURCE.indexOf("Regenerate (Claude)") - 2500),
+      SOURCE.indexOf("Regenerate (Claude)") + 600,
     );
-    // Active row → spinner + "Regenerating…"
+    // Active row → spinner + "Generating…"
+    // The label was unified to "Generating…" so the same UX applies
+    // whether the action is in flight (transient) OR the Background
+    // Function is still running (audit.pending).
     expect(buttonChunk).toMatch(/regeneratingLeadId === lead\.id/);
     expect(buttonChunk).toMatch(/Loader2 className="size-4 animate-spin"/);
-    expect(buttonChunk).toMatch(/Regenerating…/);
+    expect(buttonChunk).toMatch(/Generating…/);
     // Inactive rows → Sparkles icon + label
     expect(buttonChunk).toMatch(/Sparkles className="size-4"/);
   });

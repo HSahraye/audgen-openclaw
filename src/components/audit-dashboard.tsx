@@ -84,6 +84,8 @@ type LeadView = LeadRow & {
     aiGenerated?: boolean;
     vertical?: string | null;
     verticalDisplayName?: string | null;
+    pending?: boolean;
+    requestedAt?: string | null;
   };
   assets: GeneratedAssets;
   intelligence?: { momentumScore?: number; urgencyScore?: number; closeProbability?: number } | null;
@@ -465,6 +467,27 @@ export function AuditDashboard({
       }),
     [leads],
   );
+
+  // Polling: while ANY visible lead has an in-flight LLM
+  // regeneration (audit.pending === true), refresh the dashboard
+  // every 8 seconds so the new audit appears as soon as the
+  // Background Function completes. Polling stops automatically when
+  // no lead is pending.
+  //
+  // 8 seconds is the right balance: short enough that the user sees
+  // the new audit within ~10s of the LLM finishing, long enough that
+  // we don't hammer the server during the typical 30-90s LLM call.
+  // The effect is keyed on the boolean (any pending) so it only
+  // re-arms when that boolean transitions, not on every leads
+  // re-render.
+  const anyLeadAuditPending = parsedLeads.some((lead) => lead.audit.pending === true);
+  useEffect(() => {
+    if (!anyLeadAuditPending) return;
+    const intervalId = window.setInterval(() => {
+      router.refresh();
+    }, 8_000);
+    return () => window.clearInterval(intervalId);
+  }, [anyLeadAuditPending, router]);
 
   const filteredLeads = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -1362,21 +1385,34 @@ export function AuditDashboard({
                      */}
                     <button
                       type="button"
-                      disabled={isRegenerating || regeneratingLeadId !== null}
+                      // Disabled when:
+                      //   1. The action call is in flight (transient ~200ms)
+                      //   2. ANY row's regen is enqueued (single-in-flight)
+                      //   3. THIS row already has a Background Function
+                      //      running on it (audit.pending true; cleared
+                      //      automatically when the BG function completes,
+                      //      or after 5 minutes of staleness).
+                      disabled={
+                        isRegenerating
+                        || regeneratingLeadId !== null
+                        || lead.audit.pending === true
+                      }
                       onClick={(event) => {
                         event.stopPropagation();
                         regenerateLead(lead.id);
                       }}
                       className="inline-flex items-center gap-1 rounded-xl border border-lime-300 bg-lime-50 px-3 py-2 text-xs font-black text-lime-800 transition hover:bg-lime-100 disabled:opacity-50"
                       aria-label={
-                        regeneratingLeadId === lead.id
-                          ? `Regenerating audit for ${lead.businessName}`
-                          : `Regenerate audit (Claude-powered) for ${lead.businessName}`
+                        lead.audit.pending === true
+                          ? `Audit regenerating for ${lead.businessName}`
+                          : regeneratingLeadId === lead.id
+                            ? `Regenerating audit for ${lead.businessName}`
+                            : `Regenerate audit (Claude-powered) for ${lead.businessName}`
                       }
                     >
-                      {regeneratingLeadId === lead.id ? (
+                      {lead.audit.pending === true || regeneratingLeadId === lead.id ? (
                         <>
-                          <Loader2 className="size-4 animate-spin" /> Regenerating…
+                          <Loader2 className="size-4 animate-spin" /> Generating…
                         </>
                       ) : (
                         <>

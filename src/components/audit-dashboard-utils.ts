@@ -70,6 +70,15 @@ export type ParsedDashboardLead = {
     aiGenerated: boolean;
     vertical: string | null;
     verticalDisplayName: string | null;
+    /**
+     * True when a Background Function is currently regenerating this
+     * lead's audit (LLM call in flight). Cleared automatically when
+     * the BG function writes the new audit, or after 5 minutes of
+     * staleness if the BG function crashed without cleanup.
+     */
+    pending: boolean;
+    /** ISO 8601 timestamp the regeneration was requested. Null when not pending. */
+    requestedAt: string | null;
     [k: string]: unknown;
   };
   assets: GeneratedAssets;
@@ -106,8 +115,16 @@ type RawAuditJson = {
   aiGenerated?: unknown;
   vertical?: unknown;
   verticalDisplayName?: unknown;
+  pending?: unknown;
+  requestedAt?: unknown;
   [k: string]: unknown;
 };
+
+// Pending state TTL — must match `AUDIT_BACKGROUND_FRESHNESS_MS` in
+// `src/lib/audit/audit-async.ts`. After this window, a stale pending
+// marker is treated as "background function crashed" so the user can
+// retry without waiting forever.
+const AUDIT_PENDING_FRESHNESS_MS = 5 * 60 * 1000;
 
 function parseAuditJson(input: string, leadId: string, businessName: string): {
   parsed: RawAuditJson;
@@ -176,6 +193,19 @@ export function parseLeadForDashboard(lead: DashboardLeadInput): ParsedDashboard
     ? (lead.status as LeadStatus)
     : "New";
 
+  // Pending state. Only treat as pending when (a) the marker is
+  // literally true, AND (b) requestedAt parses as a recent timestamp.
+  // Stale markers (older than the freshness window) are coerced to
+  // pending=false so a crashed background function doesn't lock the
+  // user out of retrying forever.
+  const requestedAtRaw =
+    typeof parsedAudit.requestedAt === "string" ? parsedAudit.requestedAt : null;
+  const requestedAtMs = requestedAtRaw ? Date.parse(requestedAtRaw) : NaN;
+  const pendingFresh =
+    parsedAudit.pending === true
+    && Number.isFinite(requestedAtMs)
+    && Date.now() - requestedAtMs < AUDIT_PENDING_FRESHNESS_MS;
+
   const audit = {
     ...parsedAudit,
     checks: { ...FALLBACK_AUDIT_CHECKS, ...(parsedAudit.checks ?? {}) } as AuditChecks,
@@ -188,6 +218,8 @@ export function parseLeadForDashboard(lead: DashboardLeadInput): ParsedDashboard
     vertical: typeof parsedAudit.vertical === "string" ? parsedAudit.vertical : null,
     verticalDisplayName:
       typeof parsedAudit.verticalDisplayName === "string" ? parsedAudit.verticalDisplayName : null,
+    pending: pendingFresh,
+    requestedAt: pendingFresh ? requestedAtRaw : null,
   };
 
   const assets: GeneratedAssets = {

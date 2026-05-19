@@ -25,6 +25,14 @@ import { sendCrmWebhook } from "@/lib/crm";
 import { generateUniqueAuditSlug, normalizeAuditSlug } from "@/lib/audit-slugs";
 import { strictWorkspaceScope } from "@/lib/workspace";
 import { leadFormSchema } from "@/app/actions/leads-schema";
+import {
+  AUDIT_BACKGROUND_FUNCTION_PATH,
+  AUDIT_BACKGROUND_HEADERS,
+  buildPendingAuditJson,
+  isAuditPending,
+  signAuditBackgroundRequest,
+} from "@/lib/audit/audit-async";
+import { getPublicBaseUrl } from "@/lib/url";
 
 const leadStatuses = ["New", "Contacted", "Follow-up", "Won", "Lost"] as const;
 const MAX_SYNC_AUDIT_ROWS_PER_IMPORT = 50;
@@ -329,6 +337,120 @@ export async function regenerateLeadAction(id: string, notes?: string) {
   if (!lead) return { ok: false, error: "Lead not found." };
 
   const currentNotes = parsedNotes.data ?? lead.notes ?? undefined;
+
+  // ROUTING:
+  //   - LLM disabled (no ANTHROPIC_API_KEY) → run synchronously. The
+  //     templated path completes in <10s and fits Netlify's sync
+  //     function timeout.
+  //   - LLM enabled (ANTHROPIC_API_KEY set) → enqueue async. The
+  //     LLM call takes 30-90s and can't fit in any sync function
+  //     timeout. We mark `Lead.auditJson.pending = true` and trigger
+  //     a Netlify Background Function (15-min timeout); the dashboard
+  //     polls until pending clears.
+  //
+  // The half-configured state (LLM key set but AUDIT_INTERNAL_SECRET
+  // absent) is rejected with a clear message so the operator knows
+  // they need to set both env vars.
+  const llmEnabled = Boolean(process.env.ANTHROPIC_API_KEY?.trim());
+  const internalSecret = process.env.AUDIT_INTERNAL_SECRET?.trim();
+
+  if (llmEnabled && !internalSecret) {
+    return {
+      ok: false,
+      error:
+        "Server misconfigured: AUDIT_INTERNAL_SECRET is required when ANTHROPIC_API_KEY is set. Set both via netlify env:set or unset ANTHROPIC_API_KEY to fall back to the templated audit engine.",
+    };
+  }
+
+  if (llmEnabled && internalSecret) {
+    // Anti-double-click guard: if a regen is already pending and was
+    // requested less than AUDIT_BACKGROUND_FRESHNESS_MS ago, refuse a
+    // second click. Stale pending markers (older than the freshness
+    // window) are treated as crashed and superseded.
+    if (isAuditPending(lead.auditJson)) {
+      return {
+        ok: false,
+        error: "An audit regeneration is already in progress for this lead. Please wait a moment and refresh.",
+        status: "pending" as const,
+      };
+    }
+
+    // 1. Save updated notes synchronously + write the pending marker
+    //    to Lead.auditJson so the dashboard can show "Generating
+    //    audit (Claude-powered)..." immediately.
+    const now = new Date();
+    const pendingAuditJson = buildPendingAuditJson(lead.auditJson, now);
+    await prisma.lead.updateMany({
+      where: { id: parsed.data, ...strictWorkspaceScope(workspaceId) },
+      data: {
+        notes: currentNotes ?? null,
+        auditJson: pendingAuditJson,
+      },
+    });
+
+    // 2. Sign + fire-and-forget POST to the Background Function. The
+    //    function returns 202 in <1s (Netlify Background Functions
+    //    ack immediately, then run up to 15 minutes off-thread).
+    const timestamp = now.getTime();
+    const signature = signAuditBackgroundRequest(
+      { leadId: parsed.data, workspaceId, timestamp },
+      internalSecret,
+    );
+    const baseUrl = getPublicBaseUrl();
+    const triggerUrl = `${baseUrl}${AUDIT_BACKGROUND_FUNCTION_PATH}`;
+    try {
+      // Cap the trigger fetch at 5s so a misconfigured edge can't
+      // hang the action. Netlify Background Functions ack with 202 in
+      // ~50-200ms.
+      const triggerController = new AbortController();
+      const triggerTimeout = setTimeout(() => triggerController.abort(), 5_000);
+      const response = await fetch(triggerUrl, {
+        method: "POST",
+        headers: {
+          [AUDIT_BACKGROUND_HEADERS.signature]: signature,
+          [AUDIT_BACKGROUND_HEADERS.timestamp]: String(timestamp),
+          [AUDIT_BACKGROUND_HEADERS.leadId]: parsed.data,
+          [AUDIT_BACKGROUND_HEADERS.workspaceId]: workspaceId,
+        },
+        signal: triggerController.signal,
+      });
+      clearTimeout(triggerTimeout);
+      if (!response.ok && response.status !== 202) {
+        logger.warn("regenerate_action_background_trigger_unexpected_status", {
+          status: response.status,
+          leadId: parsed.data,
+          workspaceId,
+        });
+      }
+    } catch (err) {
+      // Trigger failed — clear the pending marker so the user can
+      // retry without waiting for the freshness window.
+      logger.error("regenerate_action_background_trigger_failed", {
+        leadId: parsed.data,
+        workspaceId,
+        reason: err instanceof Error ? err.message.slice(0, 200) : "unknown",
+      });
+      await prisma.lead.updateMany({
+        where: { id: parsed.data, ...strictWorkspaceScope(workspaceId) },
+        data: { auditJson: lead.auditJson },
+      });
+      return {
+        ok: false,
+        error: "Could not start the audit generation. Please retry in a moment.",
+      };
+    }
+
+    revalidatePath("/");
+    await writeAuditLog({
+      action: "lead.audit.regenerate.enqueued",
+      actorRole,
+      leadId: parsed.data,
+      workspaceId,
+    });
+    return { ok: true as const, status: "pending" as const };
+  }
+
+  // SYNC PATH (no LLM key) — templated audit completes in <10s.
   const audit = await generateAudit({
     businessName: lead.businessName,
     ownerName: lead.ownerName ?? undefined,
@@ -384,7 +506,7 @@ export async function regenerateLeadAction(id: string, notes?: string) {
   await incrementUsageMetric({ workspaceId, metric: "proposal_generations", amount: 1, metadata: { source: "regenerate" } });
   await incrementUsageMetric({ workspaceId, metric: "outreach_generations", amount: 1, metadata: { source: "regenerate" } });
   await writeAuditLog({ action: "lead.audit.regenerate", actorRole, leadId: parsed.data, workspaceId });
-  return { ok: true };
+  return { ok: true as const };
 }
 
 export async function importLeadsCsvAction(_prevState: unknown, formData: FormData) {
