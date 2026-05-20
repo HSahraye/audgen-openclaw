@@ -23,6 +23,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().url().optional(),
   NEXT_PUBLIC_CALENDLY_URL: z.string().url().optional(),
   BETTER_AUTH_SECRET: z.string().optional(),
+  BETTER_AUTH_URL: z.string().url().optional(),
 
   ANTHROPIC_API_KEY: z.string().optional(),
   ANTHROPIC_MODEL: z.string().optional(),

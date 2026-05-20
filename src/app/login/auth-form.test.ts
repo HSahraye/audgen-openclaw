@@ -160,8 +160,7 @@ describe("page.tsx wires GoogleSignInButton", () => {
 // Part 2 — Better Auth config includes Google social provider
 // ---------------------------------------------------------------------------
 
-describe("Better Auth config — Google social provider", () => {
-  it("reads clientId from process.env.GOOGLE_CLIENT_ID (never hardcoded)", () => {
+describe("Better Auth config — Google social provider", () => {  it("reads clientId from process.env.GOOGLE_CLIENT_ID (never hardcoded)", () => {
     expect(AUTH_SRC).toContain("GOOGLE_CLIENT_ID");
     expect(AUTH_SRC).not.toMatch(/clientId:\s*["'][0-9a-zA-Z_-]{20,}/);
   });
@@ -179,6 +178,31 @@ describe("Better Auth config — Google social provider", () => {
   it("omits google provider gracefully when env vars are absent", () => {
     // The pattern must be conditional — not unconditional object literal.
     expect(AUTH_SRC).toMatch(/googleClientId\s*&&\s*googleClientSecret/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Better Auth config — baseURL + trustedOrigins (production origin check)
+// ---------------------------------------------------------------------------
+
+describe("Better Auth config — baseURL + trustedOrigins", () => {
+  it("uses BETTER_AUTH_URL as the primary baseURL source", () => {
+    expect(AUTH_SRC).toContain("BETTER_AUTH_URL");
+    expect(AUTH_SRC).toContain("resolvedBaseURL");
+  });
+
+  it("always trusts the canonical production origin https://salegen.org", () => {
+    expect(AUTH_SRC).toContain("https://salegen.org");
+    expect(AUTH_SRC).toContain("PRODUCTION_URL");
+  });
+
+  it("always trusts the Netlify subdomain https://salegen.netlify.app", () => {
+    expect(AUTH_SRC).toContain("https://salegen.netlify.app");
+  });
+
+  it("trustedOrigins is built from a Set (deduplication — no repeated entries)", () => {
+    expect(AUTH_SRC).toContain("new Set<string>");
+    expect(AUTH_SRC).toContain("trustedOriginsSet");
   });
 });
 
