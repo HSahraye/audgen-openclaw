@@ -62,6 +62,11 @@ export async function GET(request: Request) {
     ? existing.workspaceId
     : await (async () => {
         // Bootstrap workspace — same shape as email signup path.
+        // Wrapped in $transaction so a mid-flight failure (e.g. membership.create
+        // throws) rolls back the workspace row, preventing an orphan workspace that
+        // would block future bootstrap attempts via the membership-exists guard.
+        // workspaceSettings uses upsert (matching the email path) so a partial
+        // failure on a prior attempt can always self-heal on the next visit.
         const displayName = (
           session.user.name ||
           (session.user as { email?: string }).email?.split("@")[0] ||
@@ -69,30 +74,35 @@ export async function GET(request: Request) {
         ).trim();
 
         const slug = await uniqueOAuthSlug(displayName);
-        const workspace = await prisma.workspace.create({
-          data: {
-            name: displayName,
-            slug,
-            status: "trialing",
-            planTier: "free_trial",
-            trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
-          },
-        });
 
-        await prisma.membership.create({
-          data: { userId, workspaceId: workspace.id, role: "owner" },
-        });
+        return prisma.$transaction(async (tx) => {
+          const workspace = await tx.workspace.create({
+            data: {
+              name: displayName,
+              slug,
+              status: "trialing",
+              planTier: "free_trial",
+              trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+            },
+          });
 
-        await prisma.workspaceSettings.create({
-          data: {
-            workspaceId: workspace.id,
-            brandName: "AuditGen",
-            defaultTone: "consultative",
-            defaultOfferStyle: "outcome-focused",
-          },
-        });
+          await tx.membership.create({
+            data: { userId, workspaceId: workspace.id, role: "owner" },
+          });
 
-        return workspace.id;
+          await tx.workspaceSettings.upsert({
+            where: { workspaceId: workspace.id },
+            update: {},
+            create: {
+              workspaceId: workspace.id,
+              brandName: "AuditGen",
+              defaultTone: "consultative",
+              defaultOfferStyle: "outcome-focused",
+            },
+          });
+
+          return workspace.id;
+        });
       })();
 
   // Set active workspace cookie so the dashboard loads the right tenant.

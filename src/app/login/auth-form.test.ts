@@ -187,15 +187,25 @@ describe("Better Auth config — Google social provider", () => {
 // ---------------------------------------------------------------------------
 
 describe("oauth-bootstrap route", () => {
+  it("uses workspaceSettings.upsert (not create) — matches email path, self-heals partial failures", () => {
+    expect(BOOTSTRAP_SRC).toContain("workspaceSettings.upsert");
+    expect(BOOTSTRAP_SRC).not.toContain("workspaceSettings.create");
+  });
+
   it("redirects to /login when no session", () => {
     expect(BOOTSTRAP_SRC).toContain('"/login"');
     expect(BOOTSTRAP_SRC).toContain("session?.user");
   });
 
   it("creates workspace + membership + workspaceSettings for new OAuth users", () => {
-    expect(BOOTSTRAP_SRC).toContain("prisma.workspace.create");
-    expect(BOOTSTRAP_SRC).toContain("prisma.membership.create");
-    expect(BOOTSTRAP_SRC).toContain("prisma.workspaceSettings.create");
+    // Inside $transaction the client is `tx`, not `prisma`
+    expect(BOOTSTRAP_SRC).toContain("tx.workspace.create");
+    expect(BOOTSTRAP_SRC).toContain("tx.membership.create");
+    expect(BOOTSTRAP_SRC).toContain("workspaceSettings.upsert");
+  });
+
+  it("wraps workspace + membership + settings creation in a $transaction (atomicity)", () => {
+    expect(BOOTSTRAP_SRC).toContain("prisma.$transaction");
   });
 
   it("sets the active workspace cookie after bootstrap", () => {
