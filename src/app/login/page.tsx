@@ -24,6 +24,8 @@ import {
   PricingSection,
   LandingFooter,
 } from "./landing-sections";
+import { SubmitButton } from "./submit-button";
+import { GoogleSignInButton } from "./google-signin-button";
 
 export const dynamic = "force-dynamic";
 
@@ -113,6 +115,7 @@ export default async function LoginPage({
   const hasError = Boolean(params.error);
   const isSignup = params.mode === "signup";
   const signupSpecificMessage = isSignup ? resolveSignupMessage(params.error) : null;
+  const hasGoogleOAuth = Boolean(process.env.GOOGLE_CLIENT_ID);
 
   return (
     <main className="min-h-screen bg-[#f5f7f2]">
@@ -163,6 +166,15 @@ export default async function LoginPage({
             action={loginAction}
             className="mt-6 grid gap-4 rounded-3xl border border-slate-200 bg-white p-6"
           >
+            {/* Google OAuth — shown only when credentials are configured */}
+            <GoogleSignInButton show={hasGoogleOAuth} />
+            {hasGoogleOAuth && (
+              <div className="flex items-center gap-3">
+                <div className="h-px flex-1 bg-slate-200" />
+                <span className="text-xs font-semibold text-slate-400">or</span>
+                <div className="h-px flex-1 bg-slate-200" />
+              </div>
+            )}
             <input type="hidden" name="next" value={params.next || "/"} />
             <input type="hidden" name="mode" value={isSignup ? "signup" : "signin"} />
             {isSignup ? (
@@ -214,9 +226,7 @@ export default async function LoginPage({
                 </span>
               ) : null}
             </label>
-            <button className="h-11 rounded-2xl bg-[#0F172A] text-sm font-black text-white hover:bg-slate-800">
-              {isSignup ? "Create workspace" : "Continue"}
-            </button>
+            <SubmitButton isSignup={isSignup} />
             {!isSignup ? (
               <p className="rounded-2xl bg-slate-50 p-3 text-xs text-slate-500">
                 Legacy fallback: leave email blank and enter a shared role password.

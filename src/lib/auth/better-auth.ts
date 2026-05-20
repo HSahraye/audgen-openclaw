@@ -7,6 +7,16 @@ import { getEnv } from "@/lib/env";
 const env = getEnv();
 const trustedOrigins = [env.APP_URL, env.NEXT_PUBLIC_APP_URL].filter((value): value is string => Boolean(value));
 
+// Google OAuth credentials — read strictly from environment; never hardcoded.
+// If either var is absent the socialProviders block is omitted entirely so the
+// server starts cleanly without Google configured (graceful degradation).
+const googleClientId = process.env.GOOGLE_CLIENT_ID;
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
+const googleProvider =
+  googleClientId && googleClientSecret
+    ? { google: { clientId: googleClientId, clientSecret: googleClientSecret } }
+    : {};
+
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
@@ -18,6 +28,7 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: false,
   },
+  socialProviders: googleProvider,
   user: {
     modelName: "User",
   },
