@@ -34,8 +34,9 @@ export default function TermsPage() {
           <p className="mt-4 text-sm leading-7 text-slate-700">
             These Terms of Service (&ldquo;Terms&rdquo;) govern your access to
             and use of Salegen&nbsp;/ AuditGen (the &ldquo;Service&rdquo;),
-            operated by Presence Labs (&ldquo;we,&rdquo; &ldquo;us,&rdquo; or
-            &ldquo;our&rdquo;), available at{" "}
+            operated by Hamid J Sahraye (&ldquo;Presence Labs,&rdquo;
+            &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;), available
+            at{" "}
             <a
               href="https://salegen.org"
               className="underline hover:text-slate-900"

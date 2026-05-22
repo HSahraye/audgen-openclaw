@@ -32,10 +32,11 @@ export default function PrivacyPage() {
             Effective date: <time dateTime="2026-05-22">May 22, 2026</time>
           </p>
           <p className="mt-4 text-sm leading-7 text-slate-700">
-            This Privacy Policy explains how Presence Labs (&ldquo;Salegen,&rdquo;
-            &ldquo;we,&rdquo; &ldquo;us,&rdquo; or &ldquo;our&rdquo;) collects,
-            uses, stores, and shares information when you use Salegen&nbsp;/
-            AuditGen (the &ldquo;Service&rdquo;), available at{" "}
+            This Privacy Policy explains how Hamid J Sahraye
+            (&ldquo;Presence Labs,&rdquo; &ldquo;Salegen,&rdquo; &ldquo;we,&rdquo;
+            &ldquo;us,&rdquo; or &ldquo;our&rdquo;) collects, uses, stores, and
+            shares information when you use Salegen&nbsp;/ AuditGen (the
+            &ldquo;Service&rdquo;), available at{" "}
             <a
               href="https://salegen.org"
               className="underline hover:text-slate-900"
