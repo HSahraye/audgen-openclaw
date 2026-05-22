@@ -2,7 +2,7 @@
 
 **Effective date: May 22, 2026**
 
-This Privacy Policy explains how [LEGAL ENTITY NAME] ("Presence Labs," "Salegen," "we," "us," or "our") collects, uses, stores, and shares information when you use Salegen / AuditGen (the "Service"), available at https://salegen.org. By using the Service, you agree to the practices described here.
+This Privacy Policy explains how Hamid J Sahraye ("Presence Labs," "Salegen," "we," "us," or "our") collects, uses, stores, and shares information when you use Salegen / AuditGen (the "Service"), available at https://salegen.org. By using the Service, you agree to the practices described here.
 
 ## 1. Who we are
 

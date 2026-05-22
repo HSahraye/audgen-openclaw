@@ -2,7 +2,7 @@
 
 **Effective date: May 22, 2026**
 
-These Terms of Service ("Terms") govern your access to and use of Salegen / AuditGen (the "Service"), operated by [LEGAL ENTITY NAME] ("Presence Labs," "we," "us," or "our"), available at https://salegen.org. By creating an account or using the Service, you agree to these Terms. If you do not agree, do not use the Service.
+These Terms of Service ("Terms") govern your access to and use of Salegen / AuditGen (the "Service"), operated by Hamid J Sahraye ("Presence Labs," "we," "us," or "our"), available at https://salegen.org. By creating an account or using the Service, you agree to these Terms. If you do not agree, do not use the Service.
 
 ## 1. The Service
 
@@ -71,7 +71,7 @@ We may update these Terms from time to time. If we make material changes, we wil
 
 ## 14. Governing law and disputes
 
-These Terms are governed by the laws of [GOVERNING JURISDICTION, e.g. the State of California, USA], without regard to conflict-of-laws rules. The exclusive venue for disputes will be the state or federal courts located in [VENUE], and you consent to their jurisdiction, except where prohibited by applicable law.
+These Terms are governed by the laws of the State of California, USA, without regard to conflict-of-laws rules. The exclusive venue for disputes will be the state or federal courts located in Alameda County, California, and you consent to their jurisdiction, except where prohibited by applicable law.
 
 ## 15. Contact us
 

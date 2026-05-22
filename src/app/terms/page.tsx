@@ -263,11 +263,11 @@ export default function TermsPage() {
 
           <Section id="14" title="14. Governing law and disputes">
             <p>
-              These Terms are governed by the laws of [GOVERNING JURISDICTION],
-              without regard to conflict-of-laws rules. The exclusive venue for
-              disputes will be the state or federal courts located in [VENUE],
-              and you consent to their jurisdiction, except where prohibited by
-              applicable law.
+              These Terms are governed by the laws of the State of California,
+              USA, without regard to conflict-of-laws rules. The exclusive venue
+              for disputes will be the state or federal courts located in
+              Alameda County, California, and you consent to their jurisdiction,
+              except where prohibited by applicable law.
             </p>
           </Section>
 
