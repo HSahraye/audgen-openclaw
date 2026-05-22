@@ -6,7 +6,7 @@ export const HERO_HEADLINE =
 export const HERO_SUBHEAD =
   "AuditGen finds high-need HVAC, dental, roofing, and other local-services prospects, generates a Claude-powered conversion audit you can hand them in 60 seconds, and runs the follow-up sequences for you.";
 
-export const DEMO_EMAIL = "sahrayehamid@gmail.com";
+export const DEMO_EMAIL = "Sahrayeh@Salegen.com";
 
 export const HOW_IT_WORKS_CARDS = [
   {
