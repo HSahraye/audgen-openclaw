@@ -174,6 +174,15 @@ export default function AboutPage() {
           © {new Date().getFullYear()} AuditGen. AuditGen is an AI Sales
           OS for agencies and inside-sales teams.
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <Link href="/privacy" className="underline hover:text-slate-900">
+            Privacy Policy
+          </Link>
+          <span aria-hidden>·</span>
+          <Link href="/terms" className="underline hover:text-slate-900">
+            Terms of Service
+          </Link>
+        </div>
       </footer>
     </main>
   );

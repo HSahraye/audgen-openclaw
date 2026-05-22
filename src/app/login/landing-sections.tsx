@@ -216,6 +216,15 @@ export function LandingFooter() {
             {DEMO_EMAIL}
           </a>
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <a href="/privacy" className="underline hover:text-slate-900">
+            Privacy Policy
+          </a>
+          <span aria-hidden>·</span>
+          <a href="/terms" className="underline hover:text-slate-900">
+            Terms of Service
+          </a>
+        </div>
       </div>
     </footer>
   );
