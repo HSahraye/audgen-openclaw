@@ -1,4 +1,16 @@
 import { AuditGenLogo } from "@/components/brand/auditgen-logo";
+import {
+  ButtonMotion,
+  CountUp,
+  HeroAurora,
+  HeroIntro,
+  HeroItem,
+  HoverCard,
+  LivePulse,
+  LoopConnector,
+  Reveal,
+  SpotlightCard,
+} from "./landing-motion";
 
 // ---------------------------------------------------------------------------
 // Brand-anchored constants (kept stable for downstream tests + reuse)
@@ -301,6 +313,7 @@ export function LandingNav({ next }: { next?: string }) {
 export function HeroSection() {
   return (
     <section id="top" className="relative overflow-hidden">
+      <HeroAurora />
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 opacity-[0.18]"
@@ -312,47 +325,39 @@ export function HeroSection() {
             "linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 80%)",
         }}
       />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-24 right-0 h-72 w-72 rounded-full bg-lime-300/30 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-32 -left-10 h-80 w-80 rounded-full bg-emerald-300/20 blur-3xl"
-      />
       <div className="relative mx-auto max-w-6xl px-5 pb-14 pt-16 sm:px-8 sm:pt-20 lg:pt-24">
         <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.28em] text-lime-700">
+          <HeroIntro>
+            <HeroItem as="p" className="text-xs font-black uppercase tracking-[0.28em] text-lime-700">
               {HERO_EYEBROW}
-            </p>
-            <h1 className="mt-4 text-[2.4rem] font-black leading-[1.05] tracking-tight text-slate-950 sm:text-5xl lg:text-[3.4rem]">
+            </HeroItem>
+            <HeroItem as="h1" className="mt-4 text-[2.4rem] font-black leading-[1.05] tracking-tight text-slate-950 sm:text-5xl lg:text-[3.4rem]">
               {HERO_HEADLINE}
-            </h1>
-            <p className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-[1.05rem]">
+            </HeroItem>
+            <HeroItem as="p" className="mt-6 max-w-xl text-base leading-7 text-slate-600 sm:text-[1.05rem]">
               {HERO_SUBHEAD}
-            </p>
-            <div className="mt-8 flex flex-wrap items-center gap-3">
-              <a
+            </HeroItem>
+            <HeroItem className="mt-8 flex flex-wrap items-center gap-3">
+              <ButtonMotion
                 href="#signin"
                 className="inline-flex h-12 items-center rounded-2xl bg-slate-950 px-6 text-sm font-black text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
               >
                 Start 14-day free trial
-              </a>
-              <a
+              </ButtonMotion>
+              <ButtonMotion
                 href="#sample-audit"
                 className="inline-flex h-12 items-center rounded-2xl border border-slate-200 bg-white px-6 text-sm font-black text-slate-800 transition hover:border-slate-300 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
               >
                 See a sample audit
-              </a>
+              </ButtonMotion>
               <a
                 href={`mailto:${DEMO_EMAIL}?subject=AuditGen%20demo`}
                 className="inline-flex h-12 items-center px-2 text-sm font-bold text-slate-600 transition hover:text-slate-950"
               >
                 or book a 15-min walkthrough →
               </a>
-            </div>
-            <ul className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
+            </HeroItem>
+            <HeroItem as="ul" className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-2 text-[11px] font-bold uppercase tracking-[0.14em] text-slate-500">
               {HERO_TRUST_STRIP.map((item) => (
                 <li key={item} className="flex items-center gap-2">
                   <span
@@ -362,8 +367,8 @@ export function HeroSection() {
                   {item}
                 </li>
               ))}
-            </ul>
-          </div>
+            </HeroItem>
+          </HeroIntro>
 
           <HeroPreviewCard />
         </div>
@@ -374,39 +379,42 @@ export function HeroSection() {
 
 function HeroPreviewCard() {
   return (
-    <div
-      aria-hidden="false"
+    <Reveal
+      y={20}
+      duration={0.6}
+      delay={0.15}
       className="relative isolate w-full rounded-[2rem] border border-slate-200/80 bg-white p-5 shadow-[0_30px_80px_-30px_rgba(15,23,42,0.35)] ring-1 ring-slate-100"
     >
       <div className="flex items-center justify-between">
         <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">
           Daily Brief · Tuesday
         </p>
-        <span className="rounded-full bg-lime-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-lime-800">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-lime-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-lime-800">
+          <LivePulse />
           Live
         </span>
       </div>
       <div className="mt-4 grid grid-cols-2 gap-3">
-        {[
-          { label: "Calls due", value: "12", tone: "bg-lime-100 text-lime-800" },
-          { label: "Warm audit views", value: "4", tone: "bg-sky-100 text-sky-800" },
-          { label: "Ghost leads", value: "7", tone: "bg-amber-100 text-amber-900" },
-          { label: "Weighted pipeline", value: "$28.4k", tone: "bg-slate-900 text-white" },
-        ].map((tile) => (
-          <div
-            key={tile.label}
-            className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3"
-          >
-            <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
-              {tile.label}
-            </p>
-            <p
-              className={`mt-2 inline-flex items-baseline rounded-xl px-2 py-1 text-lg font-black ${tile.tone}`}
-            >
-              {tile.value}
-            </p>
-          </div>
-        ))}
+        <PreviewTile
+          label="Calls due"
+          tone="bg-lime-100 text-lime-800"
+          value={<CountUp to={12} />}
+        />
+        <PreviewTile
+          label="Warm audit views"
+          tone="bg-sky-100 text-sky-800"
+          value={<CountUp to={4} />}
+        />
+        <PreviewTile
+          label="Ghost leads"
+          tone="bg-amber-100 text-amber-900"
+          value={<CountUp to={7} />}
+        />
+        <PreviewTile
+          label="Weighted pipeline"
+          tone="bg-slate-900 text-white"
+          value={<CountUp to={28.4} decimals={1} prefix="$" suffix="k" />}
+        />
       </div>
       <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
         <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
@@ -420,7 +428,7 @@ function HeroPreviewCard() {
             <p className="text-[11px] text-slate-500">Walnut Creek, CA · viewed audit 18m ago</p>
           </div>
           <span className="rounded-xl bg-slate-950 px-2.5 py-1 text-[11px] font-black text-lime-300">
-            78 / 100
+            <CountUp to={78} /> / 100
           </span>
         </div>
       </div>
@@ -440,6 +448,29 @@ function HeroPreviewCard() {
           →
         </span>
       </div>
+    </Reveal>
+  );
+}
+
+function PreviewTile({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: React.ReactNode;
+  tone: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-100 bg-slate-50/70 p-3">
+      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-slate-500">
+        {label}
+      </p>
+      <p
+        className={`mt-2 inline-flex items-baseline rounded-xl px-2 py-1 text-lg font-black ${tone}`}
+      >
+        {value}
+      </p>
     </div>
   );
 }
@@ -459,29 +490,34 @@ export function LoopSection() {
           AI writing app, and a spreadsheet. AuditGen is the loop, not another box in it.
         </p>
       </div>
-      <ol className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {LOOP_STAGES.map((stage, idx) => (
-          <li
-            key={stage.label}
-            className="group relative rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                Stage {String(idx + 1).padStart(2, "0")}
-              </span>
-              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-lime-700">
-                {stage.sublabel}
-              </span>
-            </div>
-            <p className="mt-4 text-2xl font-black text-slate-950">{stage.label}</p>
-            <p className="mt-2 text-sm leading-6 text-slate-600">{stage.detail}</p>
-            <span
-              aria-hidden
-              className="absolute right-5 top-5 size-2.5 rounded-full bg-lime-400 opacity-0 transition group-hover:opacity-100"
-            />
-          </li>
-        ))}
-      </ol>
+      <div className="relative mt-10">
+        <LoopConnector />
+        <ol className="relative grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {LOOP_STAGES.map((stage, idx) => (
+            <HoverCard
+              key={stage.label}
+              as="li"
+              index={idx}
+              className="group relative rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
+                  Stage {String(idx + 1).padStart(2, "0")}
+                </span>
+                <span className="text-[10px] font-black uppercase tracking-[0.16em] text-lime-700">
+                  {stage.sublabel}
+                </span>
+              </div>
+              <p className="mt-4 text-2xl font-black text-slate-950">{stage.label}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{stage.detail}</p>
+              <span
+                aria-hidden
+                className="absolute right-5 top-5 size-2.5 rounded-full bg-lime-400 opacity-0 transition group-hover:opacity-100"
+              />
+            </HoverCard>
+          ))}
+        </ol>
+      </div>
     </section>
   );
 }
@@ -503,9 +539,11 @@ export function HowItWorksSection() {
           </p>
         </div>
         <div className="mt-10 grid gap-5 md:grid-cols-3">
-          {HOW_IT_WORKS_CARDS.map((card) => (
-            <article
+          {HOW_IT_WORKS_CARDS.map((card, idx) => (
+            <HoverCard
               key={card.step}
+              as="article"
+              index={idx}
               className="relative rounded-3xl border border-slate-200 bg-[#f5f7f2] p-6"
             >
               <div className="flex items-center gap-3">
@@ -515,7 +553,7 @@ export function HowItWorksSection() {
                 <h3 className="text-lg font-black text-slate-950">{card.title}</h3>
               </div>
               <p className="mt-4 text-sm leading-6 text-slate-700">{card.body}</p>
-            </article>
+            </HoverCard>
           ))}
         </div>
       </div>
@@ -539,9 +577,10 @@ export function FeatureGroupsSection() {
         </p>
       </div>
       <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {FEATURE_GROUPS.map((group) => (
-          <article
+        {FEATURE_GROUPS.map((group, idx) => (
+          <SpotlightCard
             key={group.title}
+            index={idx}
             className="flex h-full flex-col rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:border-slate-300 hover:shadow-md"
           >
             <p className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-700">
@@ -565,7 +604,7 @@ export function FeatureGroupsSection() {
                 </li>
               ))}
             </ul>
-          </article>
+          </SpotlightCard>
         ))}
       </div>
     </section>
@@ -628,7 +667,11 @@ export function SampleAuditSection() {
 
 function SampleAuditCard() {
   return (
-    <div className="rounded-[2rem] bg-white p-6 text-slate-950 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.6)] sm:p-8">
+    <Reveal
+      y={20}
+      duration={0.6}
+      className="rounded-[2rem] bg-white p-6 text-slate-950 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.6)] sm:p-8"
+    >
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-lime-700">
@@ -643,7 +686,7 @@ function SampleAuditCard() {
         </div>
         <div className="flex shrink-0 flex-col items-end">
           <span className="rounded-2xl bg-slate-950 px-3 py-2 text-xs font-black text-lime-300">
-            {SAMPLE_AUDIT.score} / 100
+            <CountUp to={SAMPLE_AUDIT.score} duration={1.3} /> / 100
           </span>
           <span className="mt-2 rounded-full bg-amber-100 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-[0.14em] text-amber-900">
             {SAMPLE_AUDIT.needBadge}
@@ -693,14 +736,15 @@ function SampleAuditCard() {
         <p className="mt-1 text-sm font-black text-slate-950">{SAMPLE_AUDIT.package}</p>
         <p className="text-xs font-semibold text-slate-600">{SAMPLE_AUDIT.packageValue}</p>
       </div>
-    </div>
+    </Reveal>
   );
 }
 
 export function SocialProofSection() {
   return (
     <section className="mx-auto max-w-6xl px-5 py-16 sm:px-8">
-      <figure className="overflow-hidden rounded-3xl border border-lime-200 bg-lime-50 px-6 py-8 sm:px-10 sm:py-10">
+      <Reveal as="div" className="overflow-hidden rounded-3xl border border-lime-200 bg-lime-50 px-6 py-8 sm:px-10 sm:py-10">
+      <figure>
         <p className="text-[10px] font-black uppercase tracking-[0.22em] text-lime-800">
           Who it&apos;s for
         </p>
@@ -711,6 +755,7 @@ export function SocialProofSection() {
           Customer quotes coming soon — bring yours.
         </figcaption>
       </figure>
+      </Reveal>
     </section>
   );
 }
@@ -731,11 +776,12 @@ export function PricingSection() {
         </p>
       </div>
       <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {PRICING_TIERS.map((tier) => {
+        {PRICING_TIERS.map((tier, idx) => {
           const isDark = tier.highlight;
           return (
-            <div
+            <HoverCard
               key={tier.name}
+              index={idx}
               className={`relative flex h-full flex-col rounded-3xl border p-6 ${
                 isDark
                   ? "border-lime-400 bg-slate-950 text-white shadow-[0_30px_60px_-25px_rgba(15,23,42,0.55)]"
@@ -819,7 +865,7 @@ export function PricingSection() {
                   Team workspaces + email invites
                 </li>
               </ul>
-              <a
+              <ButtonMotion
                 href={tier.ctaHref}
                 className={`mt-6 block rounded-xl px-4 py-3 text-center text-xs font-black transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500 ${
                   isDark
@@ -828,8 +874,8 @@ export function PricingSection() {
                 }`}
               >
                 {tier.cta}
-              </a>
-            </div>
+              </ButtonMotion>
+            </HoverCard>
           );
         })}
       </div>
@@ -881,7 +927,11 @@ export function FaqSection() {
 export function FinalCtaSection() {
   return (
     <section className="mx-auto max-w-6xl px-5 py-20 sm:px-8">
-      <div className="relative overflow-hidden rounded-[2rem] bg-slate-950 px-6 py-12 text-white shadow-[0_30px_80px_-30px_rgba(15,23,42,0.45)] sm:px-12 sm:py-16">
+      <Reveal
+        y={24}
+        duration={0.65}
+        className="relative overflow-hidden rounded-[2rem] bg-slate-950 px-6 py-12 text-white shadow-[0_30px_80px_-30px_rgba(15,23,42,0.45)] sm:px-12 sm:py-16"
+      >
         <div
           aria-hidden
           className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-lime-400/20 blur-3xl"
@@ -904,21 +954,21 @@ export function FinalCtaSection() {
             </p>
           </div>
           <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
-            <a
+            <ButtonMotion
               href="#signin"
               className="inline-flex h-12 items-center justify-center rounded-2xl bg-lime-400 px-6 text-sm font-black text-slate-950 transition hover:bg-lime-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               Start 14-day free trial
-            </a>
-            <a
+            </ButtonMotion>
+            <ButtonMotion
               href={`mailto:${DEMO_EMAIL}?subject=AuditGen%20demo`}
               className="inline-flex h-12 items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 px-6 text-sm font-black text-slate-100 transition hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               Talk to sales
-            </a>
+            </ButtonMotion>
           </div>
         </div>
-      </div>
+      </Reveal>
     </section>
   );
 }
