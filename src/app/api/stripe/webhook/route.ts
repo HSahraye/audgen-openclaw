@@ -40,7 +40,15 @@ async function upsertSaasSubscriptionFromStripe(input: {
     current_period_end?: number;
   };
   const priceId = input.stripeSubscription.items.data[0]?.price?.id || null;
-  const planTier: PlanTier = stripePriceIdToPlanTier(priceId);
+  const planTier = stripePriceIdToPlanTier(priceId);
+  if (!planTier) {
+    logger.warn("stripe_unmapped_price_id", {
+      priceId,
+      stripeSubscriptionId: input.stripeSubscription.id,
+      workspaceId: input.workspaceId,
+    });
+    return;
+  }
   const status = stripeSubscriptionStatus(input.stripeSubscription.status);
   await prisma.subscription.upsert({
     where: { stripeSubscriptionId: input.stripeSubscription.id },

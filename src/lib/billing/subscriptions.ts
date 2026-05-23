@@ -14,7 +14,7 @@ export function planTierToStripePriceId(tier: PlanTier) {
   return mapping[tier];
 }
 
-export function stripePriceIdToPlanTier(priceId: string | null | undefined): PlanTier {
+export function stripePriceIdToPlanTier(priceId: string | null | undefined): PlanTier | null {
   const env = getEnv();
   const mapping: Array<[string | undefined, PlanTier]> = [
     [env.STRIPE_SAAS_PRICE_STARTER, "starter"],
@@ -25,7 +25,7 @@ export function stripePriceIdToPlanTier(priceId: string | null | undefined): Pla
   for (const [configured, tier] of mapping) {
     if (configured && configured === priceId) return tier;
   }
-  return "starter";
+  return null;
 }
 
 export function stripeSubscriptionStatus(status: Stripe.Subscription.Status): SubscriptionStatus {

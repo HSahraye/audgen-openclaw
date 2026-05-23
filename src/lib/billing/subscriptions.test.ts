@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stripeSubscriptionStatus, workspaceStatusFromSubscription } from "./subscriptions";
+import { stripePriceIdToPlanTier, stripeSubscriptionStatus, workspaceStatusFromSubscription } from "./subscriptions";
 
 describe("subscription transitions", () => {
   it("maps stripe statuses to internal statuses", () => {
@@ -14,5 +14,10 @@ describe("subscription transitions", () => {
 
   it("keeps workspace active for active subscriptions", () => {
     expect(workspaceStatusFromSubscription({ subscriptionStatus: "active" })).toBe("active");
+  });
+
+  it("returns null for unmapped stripe price ids", () => {
+    expect(stripePriceIdToPlanTier("price_unmapped_test_id")).toBeNull();
+    expect(stripePriceIdToPlanTier(null)).toBeNull();
   });
 });

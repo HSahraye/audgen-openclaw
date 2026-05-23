@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 import { getPublicBaseUrl } from "@/lib/url";
 
 const schema = z.object({
-  tier: z.enum(["starter", "growth", "agency", "enterprise"]),
+  tier: z.enum(["starter", "growth", "agency"]),
 });
 
 export async function POST(request: Request) {
@@ -28,7 +28,12 @@ export async function POST(request: Request) {
   if (!workspace) return NextResponse.json({ ok: false, error: "Workspace not found." }, { status: 404 });
 
   const priceId = planTierToStripePriceId(parsed.data.tier);
-  if (!priceId) return NextResponse.json({ ok: false, error: "Price ID is not configured for this tier." }, { status: 400 });
+  if (!priceId) {
+    return NextResponse.json(
+      { ok: false, error: "This plan is not available for self-serve checkout. Contact sales." },
+      { status: 400 },
+    );
+  }
 
   let customerId = workspace.stripeCustomerId ?? undefined;
   if (!customerId) {

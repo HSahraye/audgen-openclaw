@@ -29,10 +29,11 @@ export const HOW_IT_WORKS_CARDS = [
 export const PRICING_TIERS = [
   {
     name: "Starter",
-    price: "$99",
+    price: "$79",
     period: "/mo",
-    audits: "20 audits / mo",
+    audits: "25 audits / mo",
     cta: "Get started",
+    ctaHref: "#signin" as const,
     highlight: false as const,
   },
   {
@@ -41,22 +42,26 @@ export const PRICING_TIERS = [
     period: "/mo",
     audits: "100 audits / mo",
     cta: "Get started",
+    ctaHref: "#signin" as const,
     highlight: true,
+    badge: "Most popular",
   },
   {
     name: "Scale",
     price: "$399",
     period: "/mo",
-    audits: "500 audits / mo",
+    audits: "300 audits / mo",
     cta: "Get started",
+    ctaHref: "#signin" as const,
     highlight: false as const,
   },
   {
     name: "Custom",
-    price: "Talk to us",
+    price: "Contact sales",
     period: "",
-    audits: "Unlimited + white-label",
-    cta: "Contact us",
+    audits: "Negotiated limits",
+    cta: "Contact sales",
+    ctaHref: `mailto:${DEMO_EMAIL}?subject=AuditGen%20Custom%20plan`,
     highlight: false as const,
   },
 ] as const;
@@ -168,6 +173,11 @@ export function PricingSection() {
             >
               {tier.name}
             </p>
+            {"badge" in tier && tier.badge ? (
+              <p className={`mt-2 text-[10px] font-black uppercase tracking-[0.15em] ${tier.highlight ? "text-lime-300" : "text-lime-700"}`}>
+                {tier.badge}
+              </p>
+            ) : null}
             <p
               className={`mt-3 text-2xl font-black ${tier.highlight ? "text-white" : "text-slate-900"}`}
             >
@@ -184,7 +194,7 @@ export function PricingSection() {
               {tier.audits}
             </p>
             <a
-              href="#signin"
+              href={tier.ctaHref}
               className={`mt-5 block rounded-xl px-4 py-2.5 text-center text-xs font-black ${
                 tier.highlight
                   ? "bg-lime-400 text-slate-900 hover:bg-lime-300"

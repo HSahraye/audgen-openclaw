@@ -122,17 +122,17 @@ describe("PricingSection render", () => {
 
   it("renders pricing amounts", () => {
     const tree = PricingSection();
-    expect(findString(tree, "$99")).toBe(true);
+    expect(findString(tree, "$79")).toBe(true);
     expect(findString(tree, "$199")).toBe(true);
     expect(findString(tree, "$399")).toBe(true);
   });
 
-  it("all tier CTAs link to #signin", () => {
+  it("self-serve tier CTAs link to #signin; Custom links to sales email", () => {
     const tree = PricingSection();
     const hrefs = findAllHrefs(tree);
     const signinHrefs = hrefs.filter((h) => h === "#signin");
-    // 4 tiers, each with a CTA → 4 links
-    expect(signinHrefs.length).toBeGreaterThanOrEqual(4);
+    expect(signinHrefs.length).toBeGreaterThanOrEqual(3);
+    expect(hrefs.some((h) => h.startsWith("mailto:"))).toBe(true);
   });
 });
 

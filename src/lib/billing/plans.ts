@@ -10,9 +10,21 @@ export type PlanLimits = {
   proposalGenerations: number;
 };
 
+/** Customer-facing labels mapped onto Prisma PlanTier enum values (no schema change). */
+export const PLAN_CUSTOMER_LABELS: Record<PlanTier, string> = {
+  free_trial: "Trial",
+  starter: "Starter",
+  growth: "Pro",
+  agency: "Scale",
+  enterprise: "Custom",
+};
+
+/** Self-serve tiers only — Custom/enterprise is contact-sales. */
+export const SAAS_CHECKOUT_TIERS = ["starter", "growth", "agency"] as const satisfies readonly PlanTier[];
+
 export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
   free_trial: {
-    auditsPerMonth: 40,
+    auditsPerMonth: 10,
     importsPerMonth: 300,
     activeLeads: 500,
     templates: 8,
@@ -21,7 +33,7 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     proposalGenerations: 60,
   },
   starter: {
-    auditsPerMonth: 120,
+    auditsPerMonth: 25,
     importsPerMonth: 1200,
     activeLeads: 2500,
     templates: 25,
@@ -30,7 +42,7 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     proposalGenerations: 240,
   },
   growth: {
-    auditsPerMonth: 400,
+    auditsPerMonth: 100,
     importsPerMonth: 4500,
     activeLeads: 10000,
     templates: 80,
@@ -39,7 +51,7 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
     proposalGenerations: 800,
   },
   agency: {
-    auditsPerMonth: 1200,
+    auditsPerMonth: 300,
     importsPerMonth: 14000,
     activeLeads: 35000,
     templates: 200,
@@ -59,9 +71,14 @@ export const PLAN_LIMITS: Record<PlanTier, PlanLimits> = {
 };
 
 export const PLAN_DISPLAY: Record<PlanTier, { label: string; monthlyPriceCents: number }> = {
-  free_trial: { label: "Free Trial", monthlyPriceCents: 0 },
-  starter: { label: "Starter", monthlyPriceCents: 4900 },
-  growth: { label: "Growth", monthlyPriceCents: 14900 },
-  agency: { label: "Agency", monthlyPriceCents: 39900 },
-  enterprise: { label: "Enterprise", monthlyPriceCents: 0 },
+  free_trial: { label: "Trial", monthlyPriceCents: 0 },
+  starter: { label: "Starter", monthlyPriceCents: 7900 },
+  growth: { label: "Pro", monthlyPriceCents: 19900 },
+  agency: { label: "Scale", monthlyPriceCents: 39900 },
+  enterprise: { label: "Custom", monthlyPriceCents: 0 },
 };
+
+export function formatPlanPrice(monthlyPriceCents: number): string {
+  if (monthlyPriceCents <= 0) return "Contact sales";
+  return `$${monthlyPriceCents / 100}/mo`;
+}
