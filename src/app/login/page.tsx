@@ -19,9 +19,14 @@ import { BRAND } from "@/lib/brand";
 import {
   LandingNav,
   HeroSection,
+  LoopSection,
   HowItWorksSection,
+  FeatureGroupsSection,
+  SampleAuditSection,
   SocialProofSection,
   PricingSection,
+  FaqSection,
+  FinalCtaSection,
   LandingFooter,
 } from "./landing-sections";
 import { SubmitButton } from "./submit-button";
@@ -118,24 +123,19 @@ export default async function LoginPage({
   const hasGoogleOAuth = Boolean(process.env.GOOGLE_CLIENT_ID);
 
   return (
-    <main className="min-h-screen bg-[#f5f7f2]">
-      {/* ── Top navigation ── */}
+    <main className="min-h-screen bg-[#f5f7f2] text-slate-950">
       <LandingNav next={params.next} />
-
-      {/* ── Hero ── */}
       <HeroSection />
-
-      {/* ── How it works ── */}
+      <LoopSection />
       <HowItWorksSection />
-
-      {/* ── Social proof ── */}
+      <FeatureGroupsSection />
+      <SampleAuditSection />
       <SocialProofSection />
-
-      {/* ── Pricing ── */}
       <PricingSection />
+      <FaqSection />
+      <FinalCtaSection />
 
-      {/* ── Sign-in / Sign-up form ── */}
-      <section id="signin" className="mx-auto max-w-5xl px-6 py-12">
+      <section id="signin" className="mx-auto max-w-5xl px-6 py-16 sm:px-8">
         <div className="mx-auto max-w-md">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-[#64748B]">
             {BRAND.productName}
@@ -241,7 +241,6 @@ export default async function LoginPage({
         </div>
       </section>
 
-      {/* ── Footer ── */}
       <LandingFooter />
     </main>
   );

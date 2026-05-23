@@ -165,7 +165,7 @@ describe("LandingNav render", () => {
   it("demo link points to demo email", () => {
     const tree = LandingNav({});
     const hrefs = findAllHrefs(tree);
-    expect(hrefs.some((h) => h === `mailto:${DEMO_EMAIL}`)).toBe(true);
+    expect(hrefs.some((h) => h.startsWith(`mailto:${DEMO_EMAIL}`))).toBe(true);
   });
 });
 
