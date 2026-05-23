@@ -38,16 +38,42 @@ function scrubTokens(value: unknown): unknown {
 async function scrubResponse(res: Response): Promise<Response> {
   const ct = res.headers.get("content-type") || "";
   if (!ct.includes("application/json")) return res;
+  let originalText: string;
+  try {
+    originalText = await res.clone().text();
+  } catch {
+    return res;
+  }
+  // Fast path: if the response body doesn't contain a "token" field there is
+  // nothing for scrubTokens to remove. Returning the original response object
+  // preserves Set-Cookie semantics 1:1 (no header re-wrap), which is critical
+  // for the OAuth state / PKCE / session cookies that Better Auth sets on
+  // /sign-in/social and /callback/:provider. A previous version unconditionally
+  // re-wrapped via `new Headers(res.headers)`, which on some serverless
+  // runtimes silently collapses multiple Set-Cookie values into a single
+  // comma-joined header — the browser then sees zero cookies and Google
+  // sign-in bounces back to /login.
+  if (!originalText.includes('"token"')) return res;
   let body: unknown;
   try {
-    body = await res.clone().json();
+    body = JSON.parse(originalText);
   } catch {
     return res;
   }
   const scrubbed = scrubTokens(body);
-  const newHeaders = new Headers(res.headers);
-  // Recalculate content-length to avoid mismatches downstream.
-  newHeaders.delete("content-length");
+  // When we DO need to rewrap (get-session, list-sessions, idToken sign-in)
+  // copy headers manually so every Set-Cookie value is preserved as its own
+  // header entry. `new Headers(res.headers)` is unsafe here for the same
+  // multi-Set-Cookie reason described above.
+  const newHeaders = new Headers();
+  for (const [k, v] of res.headers.entries()) {
+    const kl = k.toLowerCase();
+    if (kl === "set-cookie" || kl === "content-length") continue;
+    newHeaders.append(k, v);
+  }
+  const setCookies =
+    typeof res.headers.getSetCookie === "function" ? res.headers.getSetCookie() : [];
+  for (const cookie of setCookies) newHeaders.append("set-cookie", cookie);
   return new Response(JSON.stringify(scrubbed), {
     status: res.status,
     statusText: res.statusText,
