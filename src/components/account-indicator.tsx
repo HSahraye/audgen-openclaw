@@ -20,6 +20,8 @@
  *     + writes auth audit log.
  */
 import { getCurrentSession, listCurrentUserWorkspaces } from "@/lib/auth";
+import { cookies } from "next/headers";
+import { getSessionCookie } from "better-auth/cookies";
 // Indirected through a client-side `next/dynamic({ ssr: false })`
 // wrapper so the indicator's `useRouter` / `usePathname` hooks never
 // execute during the static prerender of `/_global-error`, where
@@ -29,6 +31,23 @@ import { getCurrentSession, listCurrentUserWorkspaces } from "@/lib/auth";
 import { AccountIndicatorClientMount } from "./account-indicator-client-mount";
 
 export async function AccountIndicator() {
+  // Skip DB/session resolution when no auth cookies are present — anonymous
+  // visitors (e.g. /login marketing) should not pay for getBetterSession().
+  const cookieStore = await cookies();
+  const hasLegacySession = Boolean(cookieStore.get("pl_session")?.value);
+  const cookieHeader = cookieStore
+    .getAll()
+    .map(({ name, value }) => `${name}=${value}`)
+    .join("; ");
+  const hasBetterAuthSession = Boolean(
+    getSessionCookie(
+      new Request("http://localhost", {
+        headers: cookieHeader ? { cookie: cookieHeader } : undefined,
+      }),
+    ),
+  );
+  if (!hasLegacySession && !hasBetterAuthSession) return null;
+
   // Cheap fail-closed: any auth subsystem failure → just render nothing.
   // The pill is a UX nicety; it must never crash the global error
   // boundary if e.g. Prisma is briefly unreachable.

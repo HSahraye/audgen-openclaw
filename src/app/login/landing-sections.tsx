@@ -245,11 +245,28 @@ export const SOCIAL_PROOF =
   "Built for the 1–10 person agency selling to local-services businesses. The homework and the workflow, in one workspace — so the cold call sounds like you actually did your research, because you did.";
 
 // ---------------------------------------------------------------------------
+// Sign-in anchor helpers — query string MUST precede the fragment (#signin).
+// Never append ?next= after the hash (browsers treat it as part of the fragment id).
+// ---------------------------------------------------------------------------
+
+/** Scroll to the on-page sign-in form. Preserves any `next` already in the URL. */
+export function signInAnchorHref(): string {
+  return "#signin";
+}
+
+/** Trial / signup CTA — opens the form in signup mode, query before hash. */
+export function trialAnchorHref(next?: string): string {
+  if (!next) return "/login?mode=signup#signin";
+  return `/login?mode=signup&next=${encodeURIComponent(next)}#signin`;
+}
+
+// ---------------------------------------------------------------------------
 // Components
 // ---------------------------------------------------------------------------
 
 export function LandingNav({ next }: { next?: string }) {
-  const signInHref = `#signin${next ? `?next=${encodeURIComponent(next)}` : ""}`;
+  const signInHref = signInAnchorHref();
+  const trialHref = trialAnchorHref(next);
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200/60 bg-[#f5f7f2]/85 backdrop-blur">
       <nav
@@ -299,7 +316,7 @@ export function LandingNav({ next }: { next?: string }) {
             Sign in
           </a>
           <a
-            href={signInHref}
+            href={trialHref}
             className="rounded-xl bg-slate-950 px-4 py-2.5 text-xs font-black text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
           >
             Start free trial
@@ -339,7 +356,7 @@ export function HeroSection() {
             </HeroItem>
             <HeroItem className="mt-8 flex flex-wrap items-center gap-3">
               <ButtonMotion
-                href="#signin"
+                href={trialAnchorHref()}
                 className="inline-flex h-12 items-center rounded-2xl bg-slate-950 px-6 text-sm font-black text-white shadow-sm transition hover:bg-slate-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-500"
               >
                 Start 14-day free trial
@@ -955,7 +972,7 @@ export function FinalCtaSection() {
           </div>
           <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:flex-wrap sm:items-center lg:justify-end">
             <ButtonMotion
-              href="#signin"
+              href={trialAnchorHref()}
               className="inline-flex h-12 items-center justify-center rounded-2xl bg-lime-400 px-6 text-sm font-black text-slate-950 transition hover:bg-lime-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             >
               Start 14-day free trial

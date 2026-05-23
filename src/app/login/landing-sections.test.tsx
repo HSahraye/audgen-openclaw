@@ -142,10 +142,11 @@ describe("HeroSection render", () => {
     expect(findString(tree, "local-services")).toBe(true);
   });
 
-  it("Sign in CTA links to #signin", () => {
+  it("trial CTA links to signup mode with #signin fragment", () => {
     const tree = HeroSection();
     const hrefs = findAllHrefs(tree);
-    expect(hrefs).toContain("#signin");
+    expect(hrefs.some((h) => h.includes("#signin"))).toBe(true);
+    expect(hrefs.some((h) => h.includes("mode=signup"))).toBe(true);
   });
 
   it("Book a demo CTA links to demo email", () => {
@@ -156,6 +157,16 @@ describe("HeroSection render", () => {
 });
 
 describe("LandingNav render", () => {
+  it("Sign in href does not put query string after the fragment", () => {
+    const tree = LandingNav({ next: "/" });
+    const hrefs = findAllHrefs(tree);
+    expect(hrefs.some((h) => h.includes("#signin?"))).toBe(false);
+    expect(hrefs).toContain("#signin");
+    expect(hrefs.some((h) => h.includes("/login?mode=signup") && h.endsWith("#signin"))).toBe(
+      true,
+    );
+  });
+
   it("Sign in anchor points to #signin", () => {
     const tree = LandingNav({ next: undefined });
     const hrefs = findAllHrefs(tree);
